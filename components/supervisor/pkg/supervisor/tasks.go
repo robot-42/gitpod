@@ -498,14 +498,14 @@ func (tm *tasksManager) watch(task *task, term *terminal.Term) {
 		duration := ""
 		if elapsed >= 1*time.Minute {
 			elapsedInMinutes := strconv.Itoa(int(math.Round(elapsed.Minutes())))
-			duration = "⏱️ Well done on saving " + elapsedInMinutes + " minute"
+			duration = "⏱️\bWell done on saving " + elapsedInMinutes + " minute"
 			if elapsedInMinutes != "1" {
 				duration += "s"
 			}
 			duration += "\r\n"
 		}
 
-		endMessage := "\r\n🍊 This task ran as a workspace prebuild\r\n" + duration + "\r\n"
+		endMessage := "\r\n⚡\bThis task ran as a workspace prebuild\r\n" + duration + "\r\n"
 		_, _ = writer.Write([]byte(endMessage))
 
 		if tm.reporter != nil {
@@ -526,12 +526,12 @@ func importParentLogAndGetDuration(fn string, out io.Writer) time.Duration {
 	}
 	defer file.Close()
 
-	defer out.Write([]byte("♻️ Re-running task as an incremental workspace prebuild\r\n\r\n"))
+	defer out.Write([]byte("📦\bRe-running task for incremental prebuild\r\n\r\n"))
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		l := scanner.Text()
-		if strings.Contains(l, "🍊 This task ran as a workspace prebuild") {
+		if strings.Contains(l, "⚡\bThis task ran as a workspace prebuild") {
 			break
 		}
 		out.Write([]byte(l + "\n"))
@@ -539,7 +539,7 @@ func importParentLogAndGetDuration(fn string, out io.Writer) time.Duration {
 	if !scanner.Scan() {
 		return 0
 	}
-	reg, err := regexp.Compile(`⏱️ Well done on saving (\d+) minute`)
+	reg, err := regexp.Compile(`⏱️\bWell done on saving (\d+) minute`)
 	if err != nil {
 		return 0
 	}
