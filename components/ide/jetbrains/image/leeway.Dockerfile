@@ -2,11 +2,11 @@
 # Licensed under the GNU Affero General Public License (AGPL).
 # See License.AGPL.txt in the project root for license information.
 
-FROM alpine:3.16 as base_builder
+FROM cgr.dev/chainguard/wolfi-base:latest as base_builder
 RUN mkdir /ide-desktop
 
 # for debugging
-# FROM alpine:3.16
+# FROM cgr.dev/chainguard/wolfi-base:latest
 FROM scratch
 ARG JETBRAINS_DOWNLOAD_QUALIFIER
 ARG JETBRAINS_BACKEND_QUALIFIER
