@@ -42,10 +42,9 @@ type NotificationServiceClient interface {
 	// Supervisor will respond with a stream to which the IDE will listen
 	// waiting to receive actions to run, for example: `open` or `preview`
 	SubscribeActive(ctx context.Context, in *SubscribeActiveRequest, opts ...grpc.CallOption) (NotificationService_SubscribeActiveClient, error)
-	// Used by gp-cli to ask supervisor to request the active client
-	// to run a given command (eg. open or preview)
+	// NotifyActive requests the active client to run a given command (eg. open or preview)
 	NotifyActive(ctx context.Context, in *NotifyActiveRequest, opts ...grpc.CallOption) (*NotifyActiveResponse, error)
-	// Used by the IDE to inform supervisor about the result (eg. success or
+	// NotifyActiveRespond informs the requesting client about the result (eg. success or
 	// failure) of the action (eg. open or preview) requested via NotifyActive
 	NotifyActiveRespond(ctx context.Context, in *NotifyActiveRespondRequest, opts ...grpc.CallOption) (*NotifyActiveRespondResponse, error)
 }
@@ -178,10 +177,9 @@ type NotificationServiceServer interface {
 	// Supervisor will respond with a stream to which the IDE will listen
 	// waiting to receive actions to run, for example: `open` or `preview`
 	SubscribeActive(*SubscribeActiveRequest, NotificationService_SubscribeActiveServer) error
-	// Used by gp-cli to ask supervisor to request the active client
-	// to run a given command (eg. open or preview)
+	// NotifyActive requests the active client to run a given command (eg. open or preview)
 	NotifyActive(context.Context, *NotifyActiveRequest) (*NotifyActiveResponse, error)
-	// Used by the IDE to inform supervisor about the result (eg. success or
+	// NotifyActiveRespond informs the requesting client about the result (eg. success or
 	// failure) of the action (eg. open or preview) requested via NotifyActive
 	NotifyActiveRespond(context.Context, *NotifyActiveRespondRequest) (*NotifyActiveRespondResponse, error)
 	mustEmbedUnimplementedNotificationServiceServer()

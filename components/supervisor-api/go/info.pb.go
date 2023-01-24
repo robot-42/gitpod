@@ -101,7 +101,8 @@ type WorkspaceInfoResponse struct {
 	IdePort uint32 `protobuf:"varint,14,opt,name=ide_port,json=idePort,proto3" json:"ide_port,omitempty"`
 	// workspace_class denotes the class of the workspace
 	WorkspaceClass *WorkspaceInfoResponse_WorkspaceClass `protobuf:"bytes,15,opt,name=workspace_class,json=workspaceClass,proto3" json:"workspace_class,omitempty"`
-	OwnerId        string                                `protobuf:"bytes,16,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
+	// owner_id is user id who owns the workspace
+	OwnerId string `protobuf:"bytes,16,opt,name=owner_id,json=ownerId,proto3" json:"owner_id,omitempty"`
 }
 
 func (x *WorkspaceInfoResponse) Reset() {
