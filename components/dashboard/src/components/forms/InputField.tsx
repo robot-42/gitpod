@@ -4,21 +4,30 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
+import classNames from "classnames";
 import { FunctionComponent, memo, ReactNode } from "react";
 
 type Props = {
-    label: string;
+    label: ReactNode;
     id?: string;
     hint?: ReactNode;
+    error?: ReactNode;
 };
 
-export const InputField: FunctionComponent<Props> = memo(({ label, id, hint, children }) => {
+export const InputField: FunctionComponent<Props> = memo(({ label, id, hint, error, children }) => {
     return (
         <div className="mt-4 flex flex-col space-y-2">
-            <label className="text-sm font-semibold text-gray-600 dark:text-gray-400" htmlFor={id}>
+            <label
+                className={classNames(
+                    "text-sm font-semibold dark:text-gray-400",
+                    error ? "text-red-600" : "text-gray-600",
+                )}
+                htmlFor={id}
+            >
                 {label}
             </label>
             {children}
+            {error && <span className="text-red-500 text-sm">{error}</span>}
             {hint && <span className="text-gray-500 text-sm">{hint}</span>}
         </div>
     );

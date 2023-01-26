@@ -5,7 +5,7 @@
  */
 
 import { AuthProviderEntry } from "@gitpod/gitpod-protocol";
-import { FunctionComponent, useEffect, useState } from "react";
+import { FunctionComponent, useCallback, useEffect, useMemo, useState } from "react";
 import Alert from "../../components/Alert";
 import InfoBox from "../../components/InfoBox";
 import { InputWithCopy } from "../../components/InputWithCopy";
@@ -17,25 +17,18 @@ import exclamation from "../../images/exclamation.svg";
 import { TextInputField } from "../../components/forms/TextInputField";
 import { InputField } from "../../components/forms/InputField";
 import { SelectInputField } from "../../components/forms/SelectInputField";
+import { useUpsertAuthProviderMutation } from "../../data/auth-providers/upsert-auth-provider-mutation";
+import { useInvalidateOwnAuthProvidersQuery } from "../../data/auth-providers/own-auth-providers-query";
 
 type Props = {
-    mode: "new" | "edit";
     provider?: AuthProviderEntry;
     login?: boolean;
     headerText?: string;
     userId: string;
-    onClose?: () => void;
-    onUpdate?: () => void;
-    onAuthorize?: (payload?: string) => void;
+    onClose: () => void;
 };
 
 export const GitIntegrationModal: FunctionComponent<Props> = (props) => {
-    // TODO: maybe swap this to a boolean, isNew or something else?
-    const [mode, setMode] = useState<"new" | "edit">(props.mode || "new");
-
-    // This makes this a stateful component that manages this state now - perhaps we don't need to?
-    const [providerEntry, setProviderEntry] = useState<AuthProviderEntry | undefined>(props.provider);
-
     const [type, setType] = useState<string>(props.provider?.type ?? "GitLab");
     const [host, setHost] = useState<string>(props.provider?.host ?? "");
     const [clientId, setClientId] = useState<string>(props.provider?.oauth.clientId ?? "");
@@ -45,94 +38,116 @@ export const GitIntegrationModal: FunctionComponent<Props> = (props) => {
         props.provider?.oauth.callBackUrl ?? callbackUrl("gitlab.example.com"),
     );
 
+    const [savedProvider, setSavedProvider] = useState(props.provider);
+    const isNew = !savedProvider;
+
     const [busy, setBusy] = useState<boolean>(false);
     const [errorMessage, setErrorMessage] = useState<string | undefined>();
-    const [validationError, setValidationError] = useState<string | undefined>();
 
-    // this defaults values on "mount" - look to just set initial state values
-    // useEffect(() => {
-    //     setMode(props.mode);
-    //     if (props.mode === "edit") {
-    //         setProviderEntry(props.provider);
-    //         setType(props.provider.type);
-    //         setHost(props.provider.host);
-    //         setClientId(props.provider.oauth.clientId);
-    //         setClientSecret(props.provider.oauth.clientSecret);
-    //         setRedirectURL(props.provider.oauth.callBackUrl);
-    //     }
-    // }, []);
+    const upsertProvider = useUpsertAuthProviderMutation();
+    const invalidateOwnAuthProviders = useInvalidateOwnAuthProvidersQuery();
 
-    // Have derived, memoized values for the error validation instead?
-    useEffect(() => {
-        setErrorMessage(undefined);
-        validate();
-    }, [clientId, clientSecret, type]);
+    const {
+        message: clientIdError,
+        onBlur: clientIdOnBlur,
+        isValid: clientIdValid,
+    } = useOnBlurError(`${type === "GitLab" ? "Application ID" : "Client ID"} is missing.`, clientId.trim().length > 0);
+
+    const {
+        message: clientSecretError,
+        onBlur: clientSecretOnBlur,
+        isValid: clientSecretValid,
+    } = useOnBlurError(`${type === "GitLab" ? "Secret" : "Client Secret"} is missing.`, clientSecret.trim().length > 0);
+
+    // Should do this kind of trimming on blur to avoid mutating value as user types
+    // ditto to the client id/secret updates
+    const updateHostValue = useCallback(
+        (host: string) => {
+            if (isNew) {
+                let newHostValue = host;
+
+                if (host.startsWith("https://")) {
+                    newHostValue = host.replace("https://", "");
+                }
+
+                setHost(newHostValue);
+                setRedirectURL(callbackUrl(newHostValue));
+                setErrorMessage(undefined);
+            }
+        },
+        [isNew],
+    );
 
     // "bitbucket.org" is set as host value whenever "Bitbucket" is selected
     useEffect(() => {
-        if (props.mode === "new") {
+        if (isNew) {
             updateHostValue(type === "Bitbucket" ? "bitbucket.org" : "");
         }
-    }, [type]);
+    }, [isNew, type, updateHostValue]);
 
-    const onClose = () => props.onClose && props.onClose();
-    const onUpdate = () => props.onUpdate && props.onUpdate();
+    // Used to grab latest provider record after a successful activation flow
+    const reloadSavedProvider = useCallback(async () => {
+        if (!savedProvider) {
+            return;
+        }
+
+        const provider = (await getGitpodService().server.getOwnAuthProviders()).find(
+            (ap) => ap.id === savedProvider.id,
+        );
+        if (provider) {
+            setSavedProvider(provider);
+        }
+    }, [savedProvider]);
 
     // modal submission
     // make api call
     // handle loading/error states
     //
-    const activate = async () => {
-        let entry =
-            mode === "new"
-                ? ({
-                      host,
-                      type,
-                      clientId,
-                      clientSecret,
-                      ownerId: props.userId,
-                  } as AuthProviderEntry.NewEntry)
-                : ({
-                      id: providerEntry?.id,
-                      ownerId: props.userId,
-                      clientId,
-                      clientSecret: clientSecret === "redacted" ? undefined : clientSecret,
-                  } as AuthProviderEntry.UpdateEntry);
+    const activate = useCallback(async () => {
+        const trimmedId = clientId.trim();
+        const trimmedSecret = clientSecret.trim();
+
+        let entry = isNew
+            ? ({
+                  host,
+                  type,
+                  clientId: trimmedId,
+                  clientSecret: trimmedSecret,
+                  ownerId: props.userId,
+              } as AuthProviderEntry.NewEntry)
+            : ({
+                  id: props.provider?.id,
+                  ownerId: props.userId,
+                  clientId: trimmedId,
+                  clientSecret: clientSecret === "redacted" ? undefined : trimmedSecret,
+              } as AuthProviderEntry.UpdateEntry);
 
         setBusy(true);
         setErrorMessage(undefined);
         try {
-            // mutation goes here :smile:
-            const newProvider = await getGitpodService().server.updateOwnAuthProvider({ entry });
+            const newProvider = await upsertProvider.mutateAsync({ provider: entry });
+
+            // switch mode to stay and edit this integration.
+            setSavedProvider(newProvider);
 
             // the server is checking periodically for updates of dynamic providers, thus we need to
             // wait at least 2 seconds for the changes to be propagated before we try to use this provider.
             await new Promise((resolve) => setTimeout(resolve, 2000));
 
-            onUpdate();
-
-            // accounts for a "new" turning into a "edit" mode maybe?
-            const updateProviderEntry = async () => {
-                const provider = (await getGitpodService().server.getOwnAuthProviders()).find(
-                    (ap) => ap.id === newProvider.id,
-                );
-                if (provider) {
-                    setProviderEntry(provider);
-                }
-            };
+            // onUpdate();
 
             // just open the authorization window and do *not* await
             openAuthorizeWindow({
                 login: props.login,
                 host: newProvider.host,
                 onSuccess: (payload) => {
-                    updateProviderEntry();
-                    onUpdate();
-                    props.onAuthorize && props.onAuthorize(payload);
-                    onClose();
+                    invalidateOwnAuthProviders();
+
+                    props.onClose();
                 },
                 onError: (payload) => {
-                    updateProviderEntry();
+                    reloadSavedProvider();
+
                     let errorMessage: string;
                     if (typeof payload === "string") {
                         errorMessage = payload;
@@ -142,65 +157,30 @@ export const GitIntegrationModal: FunctionComponent<Props> = (props) => {
                     setErrorMessage(errorMessage);
                 },
             });
-
-            // switch mode to stay and edit this integration.
-            // this modal is expected to be closed programmatically.
-            setMode("edit");
-            setProviderEntry(newProvider);
         } catch (error) {
             console.log(error);
             setErrorMessage("message" in error ? error.message : "Failed to update Git provider");
         }
         setBusy(false);
-    };
+    }, [
+        clientId,
+        clientSecret,
+        host,
+        invalidateOwnAuthProviders,
+        isNew,
+        props,
+        reloadSavedProvider,
+        type,
+        upsertProvider,
+    ]);
 
-    // Should do this kind of trimming on blur to avoid mutating value as user types
-    // ditto to the client id/secret updates
-    const updateHostValue = (host: string) => {
-        if (mode === "new") {
-            let newHostValue = host;
-
-            if (host.startsWith("https://")) {
-                newHostValue = host.replace("https://", "");
-            }
-
-            setHost(newHostValue);
-            setRedirectURL(callbackUrl(newHostValue));
-            setErrorMessage(undefined);
-        }
-    };
-
-    const updateClientId = (value: string) => {
-        setClientId(value.trim());
-    };
-    const updateClientSecret = (value: string) => {
-        setClientSecret(value.trim());
-    };
-
-    // can we do this on blur of corresponding elements as well?
-    // i.e. show errors for "touched" / "dirty" fields
-    const validate = () => {
-        const errors: string[] = [];
-        if (clientId.trim().length === 0) {
-            errors.push(`${type === "GitLab" ? "Application ID" : "Client ID"} is missing.`);
-        }
-        if (clientSecret.trim().length === 0) {
-            errors.push(`${type === "GitLab" ? "Secret" : "Client Secret"} is missing.`);
-        }
-        if (errors.length === 0) {
-            setValidationError(undefined);
-            return true;
-        } else {
-            setValidationError(errors.join("\n"));
-            return false;
-        }
-    };
+    const isValid = useMemo(() => clientIdValid && clientSecretValid, [clientIdValid, clientSecretValid]);
 
     return (
-        <Modal visible onClose={onClose}>
-            <ModalHeader>{mode === "new" ? "New Git Integration" : "Git Integration"}</ModalHeader>
+        <Modal visible onClose={props.onClose}>
+            <ModalHeader>{isNew ? "New Git Integration" : "Git Integration"}</ModalHeader>
             <ModalBody>
-                {mode === "edit" && providerEntry?.status !== "verified" && (
+                {!isNew && savedProvider?.status !== "verified" && (
                     <Alert type="warning">You need to activate this integration.</Alert>
                 )}
                 <div className="flex flex-col">
@@ -211,20 +191,15 @@ export const GitIntegrationModal: FunctionComponent<Props> = (props) => {
                 </div>
 
                 <div className="overscroll-contain max-h-96 overflow-y-auto pr-2">
-                    {mode === "new" && (
-                        <SelectInputField
-                            label="Provider Type"
-                            value={type}
-                            disabled={mode !== "new"}
-                            onChange={setType}
-                        >
+                    {isNew && (
+                        <SelectInputField label="Provider Type" value={type} onChange={setType}>
                             <option value="GitHub">GitHub</option>
                             <option value="GitLab">GitLab</option>
                             {!isGitpodIo() && <option value="Bitbucket">Bitbucket</option>}
                             <option value="BitbucketServer">Bitbucket Server</option>
                         </SelectInputField>
                     )}
-                    {mode === "new" && type === "BitbucketServer" && (
+                    {isNew && type === "BitbucketServer" && (
                         <InfoBox className="my-4 mx-auto">
                             OAuth 2.0 support in Bitbucket Server was added in version 7.20.{" "}
                             <a
@@ -240,7 +215,7 @@ export const GitIntegrationModal: FunctionComponent<Props> = (props) => {
                     <TextInputField
                         label="Provider Host Name"
                         value={host}
-                        disabled={mode === "edit" || type === "Bitbucket"}
+                        disabled={!isNew || type === "Bitbucket"}
                         placeholder={getPlaceholderForIntegrationType(type)}
                         onChange={updateHostValue}
                     />
@@ -252,26 +227,34 @@ export const GitIntegrationModal: FunctionComponent<Props> = (props) => {
                     <TextInputField
                         label={type === "GitLab" ? "Application ID" : "Client ID"}
                         value={clientId}
-                        onChange={updateClientId}
+                        error={clientIdError}
+                        onBlur={clientIdOnBlur}
+                        onChange={setClientId}
                     />
 
                     <TextInputField
                         label={type === "GitLab" ? "Secret" : "Client Secret"}
                         type="password"
                         value={clientSecret}
-                        onChange={updateClientSecret}
+                        error={clientSecretError}
+                        onChange={setClientSecret}
+                        onBlur={clientSecretOnBlur}
                     />
                 </div>
 
-                {(errorMessage || validationError) && (
+                {errorMessage && (
                     <div className="flex rounded-md bg-red-600 p-3">
-                        <img className="w-4 h-4 mx-2 my-auto filter-brightness-10" src={exclamation} />
-                        <span className="text-white">{errorMessage || validationError}</span>
+                        <img
+                            className="w-4 h-4 mx-2 my-auto filter-brightness-10"
+                            src={exclamation}
+                            alt="exclamation mark"
+                        />
+                        <span className="text-white">{errorMessage}</span>
                     </div>
                 )}
             </ModalBody>
             <ModalFooter>
-                <button onClick={() => validate() && activate()} disabled={!!validationError || busy}>
+                <button onClick={activate} disabled={!isValid || busy}>
                     Activate Integration
                 </button>
             </ModalFooter>
@@ -346,4 +329,14 @@ const RedirectUrlDescription: FunctionComponent<RedirectUrlDescriptionProps> = (
             .
         </span>
     );
+};
+
+const useOnBlurError = (message: string, isValid: boolean) => {
+    const [hasBlurred, setHasBlurred] = useState(false);
+
+    const onBlur = useCallback(() => {
+        setHasBlurred(true);
+    }, []);
+
+    return { message: !isValid && hasBlurred ? message : "", isValid, onBlur };
 };

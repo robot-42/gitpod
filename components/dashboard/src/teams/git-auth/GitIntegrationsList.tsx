@@ -52,15 +52,9 @@ export const GitIntegrationsList: FunctionComponent<Props> = ({ providers }) => 
             )}
             {showCreateModal && (
                 <GitIntegrationModal
-                    // Just make a create/edit version of this modal?
-                    mode={"new"}
                     // Push this into the modal, why a prop?
                     userId={user?.id || "no-user"}
                     onClose={() => setShowCreateModal(false)}
-                    // This should just invalidate a query cache after a mutation, shouldn't do it from here
-                    onUpdate={() => {
-                        console.log("updated");
-                    }}
                 />
             )}
         </>

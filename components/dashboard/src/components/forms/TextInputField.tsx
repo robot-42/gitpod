@@ -11,31 +11,47 @@ import { InputField } from "./InputField";
 
 type Props = {
     type?: "text" | "password";
-    label: string;
+    label: ReactNode;
     value: string;
     id?: string;
     hint?: ReactNode;
+    error?: ReactNode;
     placeholder?: string;
     disabled?: boolean;
     required?: boolean;
     onChange: (newValue: string) => void;
+    onBlur?: () => void;
 };
 
 export const TextInputField: FunctionComponent<Props> = memo(
-    ({ type = "text", label, value, id, placeholder, hint, disabled = false, required = false, onChange }) => {
+    ({
+        type = "text",
+        label,
+        value,
+        id,
+        placeholder,
+        hint,
+        error,
+        disabled = false,
+        required = false,
+        onChange,
+        onBlur,
+    }) => {
         const maybeId = useId();
         const elementId = id || maybeId;
 
         return (
-            <InputField id={elementId} label={label} hint={hint}>
+            <InputField id={elementId} label={label} hint={hint} error={error}>
                 <TextInput
                     id={elementId}
                     value={value}
-                    onChange={onChange}
                     type={type}
                     placeholder={placeholder}
                     disabled={disabled}
                     required={required}
+                    className={error ? "border-red-500" : ""}
+                    onChange={onChange}
+                    onBlur={onBlur}
                 />
             </InputField>
         );
@@ -51,10 +67,11 @@ type TextInputProps = {
     disabled?: boolean;
     required?: boolean;
     onChange: (newValue: string) => void;
+    onBlur?: () => void;
 };
 
 export const TextInput: FunctionComponent<TextInputProps> = memo(
-    ({ type = "text", value, className, id, placeholder, disabled = false, required = false, onChange }) => {
+    ({ type = "text", value, className, id, placeholder, disabled = false, required = false, onChange, onBlur }) => {
         const handleChange = useCallback(
             (e) => {
                 onChange(e.target.value);
@@ -62,16 +79,19 @@ export const TextInput: FunctionComponent<TextInputProps> = memo(
             [onChange],
         );
 
+        const handleBlur = useCallback(() => onBlur && onBlur(), [onBlur]);
+
         return (
             <input
                 id={id}
                 className={classNames("w-full max-w-lg", className)}
                 value={value}
-                onChange={handleChange}
                 type={type}
                 placeholder={placeholder}
                 disabled={disabled}
                 required={required}
+                onChange={handleChange}
+                onBlur={handleBlur}
             />
         );
     },

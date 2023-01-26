@@ -5,7 +5,8 @@
  */
 
 import { AuthProviderEntry } from "@gitpod/gitpod-protocol";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
 import { getGitpodService } from "../../service/service";
 
 export type OwnAuthProvidersQueryResult = AuthProviderEntry[];
@@ -16,6 +17,14 @@ export const useOwnAuthProvidersQuery = () => {
             return await getGitpodService().server.getOwnAuthProviders();
         },
     });
+};
+
+export const useInvalidateOwnAuthProvidersQuery = () => {
+    const queryClient = useQueryClient();
+
+    return useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: getOwnAuthProvidersQueryKey() });
+    }, [queryClient]);
 };
 
 export const getOwnAuthProvidersQueryKey = () => ["auth-providers", { own: true }];

@@ -38,17 +38,15 @@ export const GitIntegrationListItem: FunctionComponent<Props> = ({ provider }) =
         return result;
     }, [provider.status]);
 
-    // TODO: move this into a rq-mutation
     const deleteProvider = useCallback(async () => {
         try {
             await deleteAuthProvider.mutateAsync({ providerId: provider.id });
+            setShowDeleteConfirmation(false);
         } catch (error) {
             console.log(error);
         }
-        setShowDeleteConfirmation(false);
     }, [deleteAuthProvider, provider.id]);
 
-    // TODO: add a deleting state to entry item maybe?
     return (
         <>
             <Item className="h-16">
@@ -87,15 +85,9 @@ export const GitIntegrationListItem: FunctionComponent<Props> = ({ provider }) =
             )}
             {showEditModal && (
                 <GitIntegrationModal
-                    // Make an edit/new verison of this instead?
-                    mode={"edit"}
                     userId={user?.id || "no-user"}
                     provider={provider}
                     onClose={() => setShowEditModal(false)}
-                    // Invalidate query cache (just do this in modal?)
-                    onUpdate={() => {
-                        console.log("updated");
-                    }}
                 />
             )}
         </>

@@ -16,9 +16,10 @@ export const useDeleteAuthProviderMutation = () => {
 
     return useMutation({
         mutationFn: async ({ providerId }: DeleteAuthProviderArgs) => {
-            await getGitpodService().server.deleteOwnAuthProvider({ id: providerId });
+            return await getGitpodService().server.deleteOwnAuthProvider({ id: providerId });
+        },
+        onSuccess: (_, { providerId }) => {
             const queryKey = getOwnAuthProvidersQueryKey();
-
             queryClient.setQueryData<OwnAuthProvidersQueryResult>(queryKey, (providers) => {
                 return providers?.filter((p) => p.id !== providerId);
             });
