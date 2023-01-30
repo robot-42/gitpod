@@ -26,12 +26,17 @@ func networkpolicy(ctx *common.RenderContext) ([]runtime.Object, error) {
 		Spec: networkingv1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{MatchLabels: labels},
 			PolicyTypes: []networkingv1.PolicyType{"Ingress"},
-			Ingress: []networkingv1.NetworkPolicyIngressRule{{
-				Ports: []networkingv1.NetworkPolicyPort{{
-					Protocol: common.TCPProtocol,
-					Port:     &intstr.IntOrString{IntVal: GRPCServicePort},
-				}},
-			}},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					Ports: []networkingv1.NetworkPolicyPort{
+						{
+							Protocol: common.TCPProtocol,
+							Port:     &intstr.IntOrString{IntVal: GRPCServicePort},
+						},
+					},
+				},
+				common.PrometheusIngressRule,
+			},
 		},
 	}}, nil
 }

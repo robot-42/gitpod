@@ -48,6 +48,7 @@ func networkpolicy(ctx *common.RenderContext) ([]runtime.Object, error) {
 							},
 						},
 					},
+					common.PrometheusIngressRule,
 				},
 			},
 		},

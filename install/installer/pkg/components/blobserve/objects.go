@@ -4,7 +4,10 @@
 
 package blobserve
 
-import "github.com/gitpod-io/gitpod/installer/pkg/common"
+import (
+	"github.com/gitpod-io/gitpod/common-go/baseserver"
+	"github.com/gitpod-io/gitpod/installer/pkg/common"
+)
 
 var Objects = common.CompositeRenderFunc(
 	configmap,
@@ -16,6 +19,11 @@ var Objects = common.CompositeRenderFunc(
 			Name:          ServicePortName,
 			ContainerPort: ContainerPort,
 			ServicePort:   ServicePort,
+		},
+		{
+			Name:          baseserver.BuiltinMetricsPortName,
+			ContainerPort: baseserver.BuiltinMetricsPort,
+			ServicePort:   baseserver.BuiltinMetricsPort,
 		},
 	}),
 	common.DefaultServiceAccount(Component),

@@ -22,7 +22,7 @@ func TestNetworkPolicy(t *testing.T) {
 	require.Truef(t, ok, "must cast object to network policy")
 
 	ingress := policy.Spec.Ingress
-	require.Len(t, ingress, 1, "must have only one ingress rule")
+	require.Len(t, ingress, 2, "must have only two ingress rule")
 
 	require.Equal(t, networkingv1.NetworkPolicyIngressRule{
 		Ports: []networkingv1.NetworkPolicyPort{

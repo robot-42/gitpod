@@ -10,6 +10,8 @@ metadata:
   name: agent-smith
   namespace: default
 spec:
+  ingress:
+    - {}
   podSelector:
     matchLabels:
       app: gitpod
@@ -79,6 +81,13 @@ spec:
       ports:
         - port: 80
           protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 9500
+          protocol: TCP
   podSelector:
     matchLabels:
       app: gitpod
@@ -109,6 +118,13 @@ spec:
       ports:
         - port: 3000
           protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 9500
+          protocol: TCP
   podSelector:
     matchLabels:
       app: gitpod
@@ -131,6 +147,13 @@ spec:
   ingress:
     - ports:
         - port: 9001
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 9500
           protocol: TCP
   podSelector:
     matchLabels:
@@ -165,6 +188,13 @@ spec:
         - podSelector:
             matchLabels:
               component: ws-manager-mk2
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 9500
+          protocol: TCP
   podSelector:
     matchLabels:
       app: gitpod
@@ -215,19 +245,7 @@ metadata:
   namespace: default
 spec:
   ingress:
-    - ports:
-        - port: 8080
-          protocol: TCP
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              chart: monitoring
-          podSelector:
-            matchLabels:
-              component: server
-      ports:
-        - port: 8080
-          protocol: TCP
+    - {}
   podSelector:
     matchLabels:
       app: gitpod
@@ -258,10 +276,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              chart: monitoring
-          podSelector:
-            matchLabels:
-              component: server
+              name: monitoring
       ports:
         - port: 9500
           protocol: TCP
@@ -293,6 +308,13 @@ spec:
         - port: 9001
           protocol: TCP
         - port: 9002
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 9500
           protocol: TCP
   podSelector:
     matchLabels:
@@ -350,16 +372,6 @@ spec:
         - port: 3000
           protocol: TCP
     - from:
-        - namespaceSelector:
-            matchLabels:
-              chart: monitoring
-          podSelector:
-            matchLabels:
-              component: proxy
-      ports:
-        - port: 9500
-          protocol: TCP
-    - from:
         - podSelector:
             matchLabels:
               component: gitpod
@@ -373,6 +385,13 @@ spec:
               component: public-api-server
       ports:
         - port: 9876
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: monitoring
+      ports:
+        - port: 9500
           protocol: TCP
   podSelector:
     matchLabels:
@@ -442,11 +461,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              chart: monitoring
-          podSelector:
-            matchLabels:
-              app: gitpod
-              component: server
+              name: monitoring
       ports:
         - port: 23000
           protocol: TCP
@@ -481,10 +496,9 @@ spec:
         - port: 8080
           protocol: TCP
     - from:
-        - podSelector:
+        - namespaceSelector:
             matchLabels:
-              app: prometheus
-              component: server
+              name: monitoring
       ports:
         - port: 9500
           protocol: TCP
@@ -529,13 +543,7 @@ metadata:
   namespace: default
 spec:
   ingress:
-    - ports:
-        - port: 8080
-          protocol: TCP
-        - port: 9090
-          protocol: TCP
-        - port: 2200
-          protocol: TCP
+    - {}
   podSelector:
     matchLabels:
       app: gitpod
@@ -2104,6 +2112,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2173,6 +2185,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2252,6 +2268,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2323,6 +2343,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2393,6 +2417,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2463,6 +2491,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2514,6 +2546,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2677,6 +2713,9 @@ data:
       annotations:
         cloud.google.com/neg: '{"exposed_ports": {"80":{},"443": {}}}'
         external-dns.alpha.kubernetes.io/hostname: gitpod.example.com,*.gitpod.example.com,*.ws.gitpod.example.com
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2830,6 +2869,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -2951,6 +2994,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -3110,6 +3157,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -3228,6 +3279,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -3347,6 +3402,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -3457,6 +3516,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -3527,6 +3590,10 @@ data:
     apiVersion: v1
     kind: Service
     metadata:
+      annotations:
+        prometheus.io/port: "9500"
+        prometheus.io/scheme: https
+        prometheus.io/scrape: "true"
       creationTimestamp: null
       labels:
         app: gitpod
@@ -7346,6 +7413,10 @@ subjects:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7359,6 +7430,10 @@ spec:
     port: 4000
     protocol: TCP
     targetPort: 32224
+  - name: metrics
+    port: 9500
+    protocol: TCP
+    targetPort: 9500
   selector:
     app: gitpod
     component: blobserve
@@ -7370,6 +7445,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7398,6 +7477,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7443,6 +7526,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7467,6 +7554,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7491,6 +7582,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7504,6 +7599,10 @@ spec:
     port: 9001
     protocol: TCP
     targetPort: 9001
+  - name: metrics
+    port: 9500
+    protocol: TCP
+    targetPort: 9500
   selector:
     app: gitpod
     component: ide-service
@@ -7515,6 +7614,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7528,6 +7631,10 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: 8080
+  - name: metrics
+    port: 9500
+    protocol: TCP
+    targetPort: 9500
   selector:
     app: gitpod
     component: image-builder-mk3
@@ -7699,6 +7806,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7730,6 +7841,9 @@ metadata:
   annotations:
     cloud.google.com/neg: '{"exposed_ports": {"80":{},"443": {}}}'
     external-dns.alpha.kubernetes.io/hostname: gitpod.example.com,*.gitpod.example.com,*.ws.gitpod.example.com
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7762,6 +7876,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7779,6 +7897,10 @@ spec:
     port: 9002
     protocol: TCP
     targetPort: 9002
+  - name: metrics
+    port: 9500
+    protocol: TCP
+    targetPort: 9500
   selector:
     app: gitpod
     component: public-api-server
@@ -7813,6 +7935,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7826,6 +7952,10 @@ spec:
     port: 20000
     protocol: TCP
     targetPort: 32223
+  - name: metrics
+    port: 9500
+    protocol: TCP
+    targetPort: 9500
   selector:
     app: gitpod
     component: registry-facade
@@ -7837,6 +7967,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7881,6 +8015,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7890,6 +8028,11 @@ metadata:
   namespace: default
 spec:
   clusterIP: None
+  ports:
+  - name: metrics
+    port: 9500
+    protocol: TCP
+    targetPort: 9500
   selector:
     app: gitpod
     component: ws-daemon
@@ -7901,6 +8044,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -7925,6 +8072,10 @@ status:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/port: "9500"
+    prometheus.io/scheme: https
+    prometheus.io/scrape: "true"
   creationTimestamp: null
   labels:
     app: gitpod
@@ -8035,14 +8186,14 @@ spec:
           name: config
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -8186,14 +8337,14 @@ spec:
           name: config-certificates
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -8409,14 +8560,14 @@ spec:
           name: gcloud-tmp
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -9037,14 +9188,14 @@ spec:
               name: redis-data
         - args:
             - --logtostderr
-            - --insecure-listen-address=[$(IP)]:9500
+            - --secure-listen-address=[$(IP)]:9500
             - --upstream=http://127.0.0.1:9500/
           env:
             - name: IP
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
-          image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+          image: quay.io/brancz/kube-rbac-proxy:v0.14.0
           name: kube-rbac-proxy
           ports:
             - containerPort: 9500
@@ -9188,14 +9339,14 @@ spec:
           name: pull-secret
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -9312,14 +9463,14 @@ spec:
           readOnly: true
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -9514,14 +9665,14 @@ spec:
           readOnly: true
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -9720,14 +9871,14 @@ spec:
           readOnly: true
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -9844,14 +9995,14 @@ spec:
           name: pull-secret
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -10067,7 +10218,7 @@ spec:
             fieldRef:
               apiVersion: v1
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         imagePullPolicy: IfNotPresent
         name: kube-rbac-proxy
         ports:
@@ -10301,14 +10452,14 @@ spec:
           readOnly: true
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -10631,14 +10782,14 @@ spec:
           readOnly: true
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -10841,14 +10992,14 @@ spec:
           readOnly: true
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -11017,14 +11168,14 @@ spec:
           readOnly: true
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
@@ -11235,14 +11386,14 @@ spec:
           name: config-certificates
       - args:
         - --logtostderr
-        - --insecure-listen-address=[$(IP)]:9500
+        - --secure-listen-address=[$(IP)]:9500
         - --upstream=http://127.0.0.1:9500/
         env:
         - name: IP
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
-        image: quay.io/brancz/kube-rbac-proxy:v0.12.0
+        image: quay.io/brancz/kube-rbac-proxy:v0.14.0
         name: kube-rbac-proxy
         ports:
         - containerPort: 9500
