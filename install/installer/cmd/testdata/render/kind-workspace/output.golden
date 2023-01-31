@@ -1,25 +1,4 @@
 ---
-# networking.k8s.io/v1/NetworkPolicy agent-smith
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: agent-smith
-  name: agent-smith
-  namespace: default
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: agent-smith
-  policyTypes:
-    - Ingress
-
----
 # networking.k8s.io/v1/NetworkPolicy image-builder-mk3
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -44,27 +23,6 @@ spec:
     matchLabels:
       app: gitpod
       component: image-builder-mk3
-  policyTypes:
-    - Ingress
-
----
-# networking.k8s.io/v1/NetworkPolicy registry-facade
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: registry-facade
-  name: registry-facade
-  namespace: default
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: registry-facade
   policyTypes:
     - Ingress
 
@@ -195,27 +153,6 @@ spec:
     matchLabels:
       app: gitpod
       component: ws-manager
-  policyTypes:
-    - Ingress
-
----
-# networking.k8s.io/v1/NetworkPolicy ws-proxy
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: ws-proxy
-  name: ws-proxy
-  namespace: default
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: ws-proxy
   policyTypes:
     - Ingress
 
@@ -1040,16 +977,6 @@ data:
       name: agent-smith
       namespace: default
     ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: agent-smith
-      name: agent-smith
-      namespace: default
-    ---
     apiVersion: rbac.authorization.k8s.io/v1
     kind: Role
     metadata:
@@ -1110,16 +1037,6 @@ data:
     ---
     apiVersion: apps/v1
     kind: DaemonSet
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: registry-facade
-      name: registry-facade
-      namespace: default
-    ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
     metadata:
       creationTimestamp: null
       labels:
@@ -1458,16 +1375,6 @@ data:
     ---
     apiVersion: apps/v1
     kind: Deployment
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: ws-proxy
-      name: ws-proxy
-      namespace: default
-    ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
     metadata:
       creationTimestamp: null
       labels:

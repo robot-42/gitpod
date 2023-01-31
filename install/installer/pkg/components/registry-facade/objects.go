@@ -13,7 +13,6 @@ var Objects = common.CompositeRenderFunc(
 	clusterrole,
 	configmap,
 	daemonset,
-	networkpolicy,
 	podsecuritypolicy,
 	rolebinding,
 	certificate,

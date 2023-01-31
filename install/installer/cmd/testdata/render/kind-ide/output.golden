@@ -1,113 +1,4 @@
 ---
-# networking.k8s.io/v1/NetworkPolicy blobserve
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: blobserve
-  name: blobserve
-  namespace: default
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: blobserve
-  policyTypes:
-    - Ingress
-
----
-# networking.k8s.io/v1/NetworkPolicy ide-metrics
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: ide-metrics
-  name: ide-metrics
-  namespace: default
-spec:
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              component: proxy
-        - podSelector:
-            matchLabels:
-              component: ide-proxy
-      ports:
-        - port: 3000
-          protocol: TCP
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: monitoring
-      ports:
-        - port: 9500
-          protocol: TCP
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: ide-metrics
-  policyTypes:
-    - Ingress
-
----
-# networking.k8s.io/v1/NetworkPolicy ide-service
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: ide-service
-  name: ide-service
-  namespace: default
-spec:
-  ingress:
-    - ports:
-        - port: 9001
-          protocol: TCP
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: monitoring
-      ports:
-        - port: 9500
-          protocol: TCP
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: ide-service
-  policyTypes:
-    - Ingress
-
----
-# networking.k8s.io/v1/NetworkPolicy openvsx-proxy
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: openvsx-proxy
-  name: openvsx-proxy
-  namespace: default
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: openvsx-proxy
-  policyTypes:
-    - Ingress
-
----
 # v1/ResourceQuota gitpod-resource-quota
 apiVersion: v1
 kind: ResourceQuota
@@ -846,16 +737,6 @@ data:
       name: blobserve
       namespace: default
     ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: blobserve
-      name: blobserve
-      namespace: default
-    ---
     apiVersion: rbac.authorization.k8s.io/v1
     kind: RoleBinding
     metadata:
@@ -963,16 +844,6 @@ data:
       name: ide-metrics
       namespace: default
     ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: ide-metrics
-      name: ide-metrics
-      namespace: default
-    ---
     apiVersion: v1
     kind: ServiceAccount
     metadata:
@@ -1043,16 +914,6 @@ data:
         app: gitpod
         component: ide-service
         kind: service
-      name: ide-service
-      namespace: default
-    ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: ide-service
       name: ide-service
       namespace: default
     ---
@@ -1139,16 +1000,6 @@ data:
         app: gitpod
         component: openvsx-proxy
       name: openvsx-proxy-config
-      namespace: default
-    ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: openvsx-proxy
-      name: openvsx-proxy
       namespace: default
     ---
     apiVersion: rbac.authorization.k8s.io/v1

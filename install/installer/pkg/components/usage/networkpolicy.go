@@ -10,7 +10,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 func networkpolicy(ctx *common.RenderContext) ([]runtime.Object, error) {
@@ -27,47 +26,7 @@ func networkpolicy(ctx *common.RenderContext) ([]runtime.Object, error) {
 			Spec: networkingv1.NetworkPolicySpec{
 				PodSelector: metav1.LabelSelector{MatchLabels: labels},
 				PolicyTypes: []networkingv1.PolicyType{"Ingress"},
-				Ingress: []networkingv1.NetworkPolicyIngressRule{
-					{
-						Ports: []networkingv1.NetworkPolicyPort{
-							{
-								Protocol: common.TCPProtocol,
-								Port:     &intstr.IntOrString{IntVal: gRPCContainerPort},
-							},
-						},
-						From: []networkingv1.NetworkPolicyPeer{
-							{
-								PodSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"component": common.ServerComponent,
-									},
-								},
-							},
-							{
-								PodSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"component": common.SlowServerComponent,
-									},
-								},
-							},
-							{
-								PodSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"component": common.PaymentEndpointComponent,
-									},
-								},
-							},
-							{
-								PodSelector: &metav1.LabelSelector{
-									MatchLabels: map[string]string{
-										"component": common.PublicApiComponent,
-									},
-								},
-							},
-						},
-					},
-					common.PrometheusIngressRule,
-				},
+				Ingress:     []networkingv1.NetworkPolicyIngressRule{{}},
 			},
 		},
 	}, nil
