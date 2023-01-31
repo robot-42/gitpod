@@ -13,6 +13,7 @@ import (
 
 	"github.com/gitpod-io/gitpod/common-go/util"
 
+	wsactivity "github.com/gitpod-io/gitpod/ws-manager-mk2/pkg/activity"
 	"github.com/gitpod-io/gitpod/ws-manager/api/config"
 	workspacev1 "github.com/gitpod-io/gitpod/ws-manager/api/crd/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -309,8 +310,10 @@ const (
 )
 
 // isWorkspaceTimedOut determines if a workspace is timed out based on the manager configuration and state the pod is in.
-// This function does NOT use the workspaceTimedoutAnnotation, but rather is used to set that annotation in the first place.
-func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts config.WorkspaceTimeoutConfiguration) (reason string, err error) {
+// This function does NOT use the Timeout condition, but rather is used to set that condition in the first place.
+//
+//nolint:unused,deadcode TODO: Remove nolint
+func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts config.WorkspaceTimeoutConfiguration, act *wsactivity.WorkspaceActivity) (reason string, err error) {
 	// workspaceID := ws.Spec.Ownership.WorkspaceID
 	phase := ws.Status.Phase
 
@@ -326,7 +329,7 @@ func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts co
 
 	// TODO: Use ws or pod's CreationTimestamp?
 	start := ws.ObjectMeta.CreationTimestamp.Time
-	lastActivity := getWorkspaceActivity(ws)
+	lastActivity := act.GetLastActivity(ws.Spec.Ownership.WorkspaceID)
 	isClosed := conditionPresentAndTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionClosed))
 
 	switch phase {
@@ -385,15 +388,7 @@ func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts co
 	}
 }
 
-func getWorkspaceActivity(ws *workspacev1.Workspace) *time.Time {
-	for _, c := range ws.Status.Conditions {
-		if c.Type == string(workspacev1.WorkspaceConditionUserActivity) {
-			return &c.LastTransitionTime.Time
-		}
-	}
-	return nil
-}
-
+//nolint:unused,deadcode TODO: remove nolint
 func formatDuration(d time.Duration) string {
 	d = d.Round(time.Minute)
 	h := d / time.Hour

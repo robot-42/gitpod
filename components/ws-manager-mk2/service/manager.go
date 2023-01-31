@@ -24,6 +24,7 @@ import (
 	wsk8s "github.com/gitpod-io/gitpod/common-go/kubernetes"
 	"github.com/gitpod-io/gitpod/common-go/log"
 	"github.com/gitpod-io/gitpod/common-go/tracing"
+	"github.com/gitpod-io/gitpod/ws-manager-mk2/pkg/activity"
 	"github.com/gitpod-io/gitpod/ws-manager/api"
 	wsmanapi "github.com/gitpod-io/gitpod/ws-manager/api"
 	"github.com/gitpod-io/gitpod/ws-manager/api/config"
@@ -41,14 +42,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func NewWorkspaceManagerServer(clnt client.Client, cfg *config.Configuration, reg prometheus.Registerer) *WorkspaceManagerServer {
+func NewWorkspaceManagerServer(clnt client.Client, cfg *config.Configuration, reg prometheus.Registerer, activity *activity.WorkspaceActivity) *WorkspaceManagerServer {
 	metrics := newWorkspaceMetrics()
 	reg.MustRegister(metrics)
 
 	return &WorkspaceManagerServer{
-		Client:  clnt,
-		Config:  cfg,
-		metrics: metrics,
+		Client:   clnt,
+		Config:   cfg,
+		metrics:  metrics,
+		activity: activity,
 		subs: subscriptions{
 			subscribers: make(map[string]chan *wsmanapi.SubscribeResponse),
 		},
@@ -56,9 +58,10 @@ func NewWorkspaceManagerServer(clnt client.Client, cfg *config.Configuration, re
 }
 
 type WorkspaceManagerServer struct {
-	Client  client.Client
-	Config  *config.Configuration
-	metrics *workspaceMetrics
+	Client   client.Client
+	Config   *config.Configuration
+	metrics  *workspaceMetrics
+	activity *activity.WorkspaceActivity
 
 	subs subscriptions
 	wsmanapi.UnimplementedWorkspaceManagerServer
@@ -328,21 +331,10 @@ func (wsm *WorkspaceManagerServer) MarkActive(ctx context.Context, req *wsmanapi
 		return &api.MarkActiveResponse{}, nil
 	}
 
-	// We do not keep the last activity as annotation on the workspace to limit the load we're placing
+	// We do not keep the last activity in the workspace resource to limit the load we're placing
 	// on the K8S master in check. Thus, this state lives locally in a map.
-	// TODO: Check impact on k8s api, moving to CRD condition.
 	now := time.Now().UTC()
-	if err = wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
-		ws.Status.Conditions = addUniqueCondition(ws.Status.Conditions, metav1.Condition{
-			Type:               string(workspacev1.WorkspaceConditionUserActivity),
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.NewTime(now),
-		})
-		return nil
-	}); err != nil {
-		log.WithError(err).WithFields(log.OWI("", "", workspaceID)).Warn("was unable to set UserActivity condition on workspace")
-		return nil, err
-	}
+	wsm.activity.Store(req.Id, now)
 
 	// We do however maintain the the "closed" flag as annotation on the workspace. This flag should not change
 	// very often and provides a better UX if it persists across ws-manager restarts.
@@ -375,7 +367,7 @@ func (wsm *WorkspaceManagerServer) MarkActive(ctx context.Context, req *wsmanapi
 		log.WithError(err).WithFields(log.OWI("", "", workspaceID)).Warn("was unable to mark workspace properly")
 	}
 
-	// If it's the first call: Mark the pod with firstUserActivityAnnotation
+	// If it's the first call: Mark the pod with FirstUserActivity condition.
 	if firstUserActivity == nil {
 		err := wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
 			ws.Status.Conditions = append(ws.Status.Conditions, metav1.Condition{

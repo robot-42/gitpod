@@ -147,9 +147,6 @@ const (
 	// UserActivity is the time when MarkActive was first called on the workspace
 	WorkspaceConditionFirstUserActivity WorkspaceCondition = "FirstUserActivity"
 
-	// UserActivity is the most recent time when MarkActive was called on the workspace
-	WorkspaceConditionUserActivity WorkspaceCondition = "UserActivity"
-
 	// Closed indicates that a workspace is marked as closed. This will shorten its timeout.
 	WorkspaceConditionClosed WorkspaceCondition = "Closed"
 
