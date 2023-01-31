@@ -9,7 +9,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"time"
 
+	"github.com/gitpod-io/gitpod/common-go/util"
+
+	"github.com/gitpod-io/gitpod/ws-manager/api/config"
 	workspacev1 "github.com/gitpod-io/gitpod/ws-manager/api/crd/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -286,4 +290,114 @@ func extractFailureFromLogs(logs []byte) string {
 func isPodBeingDeleted(pod *corev1.Pod) bool {
 	// if the pod is being deleted the only marker we have is that the deletionTimestamp is set
 	return pod.ObjectMeta.DeletionTimestamp != nil
+}
+
+type activity string
+
+const (
+	activityInit               activity = "initialization"
+	activityStartup            activity = "startup"
+	activityCreatingContainers activity = "creating containers"
+	activityPullingImages      activity = "pulling images"
+	activityRunningHeadless    activity = "running the headless workspace"
+	activityNone               activity = "period of inactivity"
+	activityMaxLifetime        activity = "maximum lifetime"
+	activityClosed             activity = "after being closed"
+	activityInterrupted        activity = "workspace interruption"
+	activityStopping           activity = "stopping"
+	activityBackup             activity = "backup"
+)
+
+// isWorkspaceTimedOut determines if a workspace is timed out based on the manager configuration and state the pod is in.
+// This function does NOT use the workspaceTimedoutAnnotation, but rather is used to set that annotation in the first place.
+func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts config.WorkspaceTimeoutConfiguration) (reason string, err error) {
+	// workspaceID := ws.Spec.Ownership.WorkspaceID
+	phase := ws.Status.Phase
+
+	decide := func(start time.Time, timeout util.Duration, activity activity) (string, error) {
+		td := time.Duration(timeout)
+		inactivity := time.Since(start)
+		if inactivity < td {
+			return "", nil
+		}
+
+		return fmt.Sprintf("workspace timed out after %s (%s) took longer than %s", activity, formatDuration(inactivity), formatDuration(td)), nil
+	}
+
+	// TODO: Use ws or pod's CreationTimestamp?
+	start := ws.ObjectMeta.CreationTimestamp.Time
+	lastActivity := getWorkspaceActivity(ws)
+	isClosed := conditionPresentAndTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionClosed))
+
+	switch phase {
+	case workspacev1.WorkspacePhasePending:
+		return decide(start, timeouts.Initialization, activityInit)
+
+	case workspacev1.WorkspacePhaseInitializing:
+		return decide(start, timeouts.TotalStartup, activityStartup)
+
+	case workspacev1.WorkspacePhaseCreating:
+		activity := activityCreatingContainers
+		// TODO:
+		// if status.Conditions.PullingImages == api.WorkspaceConditionBool_TRUE {
+		// 	activity = activityPullingImages
+		// }
+		return decide(start, timeouts.TotalStartup, activity)
+
+	case workspacev1.WorkspacePhaseRunning:
+		// First check is always for the max lifetime
+		if msg, err := decide(start, timeouts.MaxLifetime, activityMaxLifetime); msg != "" {
+			return msg, err
+		}
+
+		timeout := timeouts.RegularWorkspace
+		activity := activityNone
+		if ws.Status.Headless {
+			timeout = timeouts.HeadlessWorkspace
+			lastActivity = &start
+			activity = activityRunningHeadless
+		} else if lastActivity == nil {
+			// the workspace is up and running, but the user has never produced any activity
+			return decide(start, timeouts.TotalStartup, activityNone)
+		} else if isClosed {
+			return decide(*lastActivity, timeouts.AfterClose, activityClosed)
+		}
+		if ctv := ws.Spec.Timeout.Time; ctv != nil {
+			timeout = util.Duration(ctv.Duration)
+		}
+		return decide(*lastActivity, timeout, activity)
+
+	case workspacev1.WorkspacePhaseStopping:
+		if isPodBeingDeleted(pod) && conditionPresentAndTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionBackupComplete)) {
+			// Beware: we apply the ContentFinalization timeout only to workspaces which are currently being deleted.
+			//         We basically don't expect a workspace to be in content finalization before it's been deleted.
+			return decide(pod.DeletionTimestamp.Time, timeouts.ContentFinalization, activityBackup)
+		} else if !isPodBeingDeleted(pod) {
+			// pods that have not been deleted have never timed out
+			return "", nil
+		} else {
+			return decide(pod.DeletionTimestamp.Time, timeouts.Stopping, activityStopping)
+		}
+
+	default:
+		// the only other phases we can be in is stopped which is pointless to time out
+		return "", nil
+	}
+}
+
+func getWorkspaceActivity(ws *workspacev1.Workspace) *time.Time {
+	for _, c := range ws.Status.Conditions {
+		if c.Type == string(workspacev1.WorkspaceConditionUserActivity) {
+			return &c.LastTransitionTime.Time
+		}
+	}
+	return nil
+}
+
+func formatDuration(d time.Duration) string {
+	d = d.Round(time.Minute)
+	h := d / time.Hour
+	d -= h * time.Hour
+	m := d / time.Minute
+	return fmt.Sprintf("%02dh%02dm", h, m)
 }

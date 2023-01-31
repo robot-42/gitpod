@@ -298,9 +298,120 @@ func (m *WorkspaceManagerServer) Subscribe(req *api.SubscribeRequest, srv api.Wo
 	return m.subs.Subscribe(srv.Context(), sub)
 }
 
-func (wsm *WorkspaceManagerServer) MarkActive(ctx context.Context, req *wsmanapi.MarkActiveRequest) (*wsmanapi.MarkActiveResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method MarkActive not implemented")
+// MarkActive records a workspace as being active which prevents it from timing out
+func (wsm *WorkspaceManagerServer) MarkActive(ctx context.Context, req *wsmanapi.MarkActiveRequest) (res *wsmanapi.MarkActiveResponse, err error) {
+	//nolint:ineffassign
+	span, ctx := tracing.FromContext(ctx, "MarkActive")
+	tracing.ApplyOWI(span, log.OWI("", "", req.Id))
+	defer tracing.FinishSpan(span, &err)
+
+	workspaceID := req.Id
+
+	var ws workspacev1.Workspace
+	err = wsm.Client.Get(ctx, types.NamespacedName{Namespace: wsm.Config.Namespace, Name: req.Id}, &ws)
+	if errors.IsNotFound(err) {
+		return nil, status.Errorf(codes.NotFound, "workspace %s does not exist", req.Id)
+	}
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "cannot mark workspace: %v", err)
+	}
+
+	var firstUserActivity *timestamppb.Timestamp
+	for _, c := range ws.Status.Conditions {
+		if c.Type == string(workspacev1.WorkspaceConditionFirstUserActivity) {
+			firstUserActivity = timestamppb.New(c.LastTransitionTime.Time)
+		}
+	}
+
+	// if user already mark workspace as active and this request has IgnoreIfActive flag, just simple ignore it
+	if firstUserActivity != nil && req.IgnoreIfActive {
+		return &api.MarkActiveResponse{}, nil
+	}
+
+	// We do not keep the last activity as annotation on the workspace to limit the load we're placing
+	// on the K8S master in check. Thus, this state lives locally in a map.
+	// TODO: Check impact on k8s api, moving to CRD condition.
+	now := time.Now().UTC()
+	if err = wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
+		ws.Status.Conditions = addUniqueCondition(ws.Status.Conditions, metav1.Condition{
+			Type:               string(workspacev1.WorkspaceConditionUserActivity),
+			Status:             metav1.ConditionTrue,
+			LastTransitionTime: metav1.NewTime(now),
+		})
+		return nil
+	}); err != nil {
+		log.WithError(err).WithFields(log.OWI("", "", workspaceID)).Warn("was unable to set UserActivity condition on workspace")
+		return nil, err
+	}
+
+	// We do however maintain the the "closed" flag as annotation on the workspace. This flag should not change
+	// very often and provides a better UX if it persists across ws-manager restarts.
+	var isMarkedClosed bool
+	for _, c := range ws.Status.Conditions {
+		if c.Type == string(workspacev1.WorkspaceConditionClosed) && c.Status == metav1.ConditionTrue {
+			isMarkedClosed = true
+		}
+	}
+	if req.Closed && !isMarkedClosed {
+		err = wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
+			ws.Status.Conditions = addUniqueCondition(ws.Status.Conditions, metav1.Condition{
+				Type:               string(workspacev1.WorkspaceConditionClosed),
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.NewTime(now),
+			})
+			return nil
+		})
+	} else if !req.Closed && isMarkedClosed {
+		err = wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
+			ws.Status.Conditions = addUniqueCondition(ws.Status.Conditions, metav1.Condition{
+				Type:               string(workspacev1.WorkspaceConditionClosed),
+				Status:             metav1.ConditionFalse,
+				LastTransitionTime: metav1.NewTime(now),
+			})
+			return nil
+		})
+	}
+	if err != nil {
+		log.WithError(err).WithFields(log.OWI("", "", workspaceID)).Warn("was unable to mark workspace properly")
+	}
+
+	// If it's the first call: Mark the pod with firstUserActivityAnnotation
+	if firstUserActivity == nil {
+		err := wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
+			ws.Status.Conditions = append(ws.Status.Conditions, metav1.Condition{
+				Type:               string(workspacev1.WorkspaceConditionFirstUserActivity),
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.NewTime(now),
+			})
+			return nil
+		})
+		if err != nil {
+			log.WithError(err).WithFields(log.OWI("", "", workspaceID)).Warn("was unable to set FirstUserActivity condition on workspace")
+			return nil, err
+		}
+	}
+
+	return &api.MarkActiveResponse{}, nil
 }
+
+// markAllWorkspacesActive marks all existing workspaces as active (as if MarkActive had been called for each of them)
+// func (wsm *WorkspaceManagerServer) markAllWorkspacesActive() error {
+// 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second/*kubernetesOperationTimeout TODO*/)
+// 	defer cancel()
+
+// 	var workspaces workspacev1.WorkspaceList
+// 	err := wsm.Client.List(ctx, &workspaces)
+// 	if err != nil {
+// 		return xerrors.Errorf("markAllWorkspacesActive failed to list workspaces: %w", err)
+// 	}
+
+// 	for _, ws := range workspaces.Items {
+// 		wsid := ws.Spec.Ownership.WorkspaceID
+// 		now := time.Now().UTC()
+// 		wsm.activity.Store(wsid, &now)
+// 	}
+// 	return nil
+// }
 
 func (wsm *WorkspaceManagerServer) SetTimeout(ctx context.Context, req *wsmanapi.SetTimeoutRequest) (*wsmanapi.SetTimeoutResponse, error) {
 	duration, err := time.ParseDuration(req.Duration)
@@ -529,7 +640,7 @@ func extractWorkspaceStatus(ws *workspacev1.Workspace) *wsmanapi.WorkspaceStatus
 
 	var firstUserActivity *timestamppb.Timestamp
 	for _, c := range ws.Status.Conditions {
-		if c.Type == string(workspacev1.WorkspaceConditionUserActivity) {
+		if c.Type == string(workspacev1.WorkspaceConditionFirstUserActivity) {
 			firstUserActivity = timestamppb.New(c.LastTransitionTime.Time)
 		}
 	}
@@ -879,4 +990,15 @@ func (m *workspaceMetrics) Describe(ch chan<- *prometheus.Desc) {
 // Collect implements Collector.
 func (m *workspaceMetrics) Collect(ch chan<- prometheus.Metric) {
 	m.totalStartsCounterVec.Collect(ch)
+}
+
+func addUniqueCondition(conds []metav1.Condition, cond metav1.Condition) []metav1.Condition {
+	for i, c := range conds {
+		if c.Type == cond.Type {
+			conds[i] = cond
+			return conds
+		}
+	}
+
+	return append(conds, cond)
 }
