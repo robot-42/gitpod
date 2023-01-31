@@ -13,7 +13,6 @@ var Objects = common.CompositeRenderFunc(
 	clusterrole,
 	configmap,
 	deployment,
-	networkpolicy,
 	rolebinding,
 	common.GenerateService(Component, []common.ServicePort{
 		{

@@ -616,10 +616,6 @@ func ObjectHash(objs []runtime.Object, err error) (string, error) {
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
 }
 
-const (
-	AllowIngress = "{}"
-)
-
 var (
 	TCPProtocol = func() *corev1.Protocol {
 		tcpProtocol := corev1.ProtocolTCP
@@ -630,7 +626,7 @@ var (
 			{
 				NamespaceSelector: &metav1.LabelSelector{
 					MatchLabels: map[string]string{
-						"name": "monitoring",
+						"role": "monitoring",
 					},
 				},
 			},

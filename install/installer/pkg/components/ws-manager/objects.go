@@ -5,13 +5,13 @@
 package wsmanager
 
 import (
+	"github.com/gitpod-io/gitpod/common-go/baseserver"
 	"github.com/gitpod-io/gitpod/installer/pkg/common"
 )
 
 var Objects = common.CompositeRenderFunc(
 	configmap,
 	deployment,
-	networkpolicy,
 	role,
 	rolebinding,
 	common.DefaultServiceAccount(Component),
@@ -20,6 +20,11 @@ var Objects = common.CompositeRenderFunc(
 			Name:          RPCPortName,
 			ContainerPort: RPCPort,
 			ServicePort:   RPCPort,
+		},
+		{
+			Name:          baseserver.BuiltinMetricsPortName,
+			ContainerPort: baseserver.BuiltinMetricsPort,
+			ServicePort:   baseserver.BuiltinMetricsPort,
 		},
 	}),
 	tlssecret,

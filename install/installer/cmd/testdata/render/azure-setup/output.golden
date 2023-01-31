@@ -1,44 +1,4 @@
 ---
-# networking.k8s.io/v1/NetworkPolicy image-builder-mk3
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: image-builder-mk3
-  name: image-builder-mk3
-  namespace: default
-spec:
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              component: server
-        - podSelector:
-            matchLabels:
-              component: slow-server
-        - podSelector:
-            matchLabels:
-              component: ws-manager
-        - podSelector:
-            matchLabels:
-              component: ws-manager-mk2
-    - from:
-        - namespaceSelector:
-            matchLabels:
-              name: monitoring
-      ports:
-        - port: 9500
-          protocol: TCP
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: image-builder-mk3
-  policyTypes:
-    - Ingress
-
----
 # networking.k8s.io/v1/NetworkPolicy messagebus
 # Source: rabbitmq/charts/rabbitmq/templates/networkpolicy.yaml
 kind: NetworkPolicy
@@ -129,7 +89,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              name: monitoring
+              role: monitoring
       ports:
         - port: 23000
           protocol: TCP
@@ -166,7 +126,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              name: monitoring
+              role: monitoring
       ports:
         - port: 9500
           protocol: TCP
@@ -174,27 +134,6 @@ spec:
     matchLabels:
       app: gitpod
       component: ws-daemon
-  policyTypes:
-    - Ingress
-
----
-# networking.k8s.io/v1/NetworkPolicy ws-manager
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  creationTimestamp: null
-  labels:
-    app: gitpod
-    component: ws-manager
-  name: ws-manager
-  namespace: default
-spec:
-  ingress:
-    - {}
-  podSelector:
-    matchLabels:
-      app: gitpod
-      component: ws-manager
   policyTypes:
     - Ingress
 
@@ -2500,16 +2439,6 @@ data:
       name: ws-manager
       namespace: default
     ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: ws-manager
-      name: ws-manager
-      namespace: default
-    ---
     apiVersion: rbac.authorization.k8s.io/v1
     kind: ClusterRole
     metadata:
@@ -2709,16 +2638,6 @@ data:
     ---
     apiVersion: apps/v1
     kind: Deployment
-    metadata:
-      creationTimestamp: null
-      labels:
-        app: gitpod
-        component: image-builder-mk3
-      name: image-builder-mk3
-      namespace: default
-    ---
-    apiVersion: networking.k8s.io/v1
-    kind: NetworkPolicy
     metadata:
       creationTimestamp: null
       labels:
@@ -6842,6 +6761,10 @@ spec:
     port: 8080
     protocol: TCP
     targetPort: 8080
+  - name: metrics
+    port: 9500
+    protocol: TCP
+    targetPort: 9500
   selector:
     app: gitpod
     component: ws-manager

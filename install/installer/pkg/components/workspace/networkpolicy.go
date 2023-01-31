@@ -76,7 +76,7 @@ func networkpolicy(ctx *common.RenderContext) ([]runtime.Object, error) {
 						{
 							NamespaceSelector: &metav1.LabelSelector{
 								MatchLabels: map[string]string{
-									"name": "monitoring",
+									"role": "monitoring",
 								},
 							},
 						},
