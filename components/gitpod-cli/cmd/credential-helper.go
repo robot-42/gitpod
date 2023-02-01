@@ -22,6 +22,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/gitpod-io/gitpod/common-go/util"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	supervisor "github.com/gitpod-io/gitpod/supervisor/api"
 )
 
@@ -32,6 +33,9 @@ var credentialHelper = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// ignore trace
+		utils.TrackCommandUsageEvent.Command = nil
+
 		action := args[0]
 		log.SetOutput(io.Discard)
 		f, err := os.OpenFile(os.TempDir()+"/gitpod-git-credential-helper.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)

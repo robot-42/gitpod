@@ -19,6 +19,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/gitpod-io/gitpod/common-go/util"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	serverapi "github.com/gitpod-io/gitpod/gitpod-protocol"
 	supervisor "github.com/gitpod-io/gitpod/supervisor/api"
 )
@@ -39,6 +40,9 @@ var gitTokenValidator = &cobra.Command{
 	Args:   cobra.ExactArgs(0),
 	Hidden: true,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// ignore trace
+		utils.TrackCommandUsageEvent.Command = nil
+
 		log.SetOutput(io.Discard)
 		f, err := os.OpenFile(os.TempDir()+"/gitpod-git-credential-helper.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err == nil {
