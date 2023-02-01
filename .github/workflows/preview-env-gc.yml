@@ -38,7 +38,7 @@ jobs:
                   cat /tmp/stale
                   # end of hack
 
-                  cat /tmp/stale | jq --compact-output --raw-input --slurp 'split("\n") | map(select(. != ""))')" > /tmp/stale-json
+                  cat /tmp/stale | jq --compact-output --raw-input --slurp 'split("\n") | map(select(. != ""))' > /tmp/stale-json
                   echo "names=$(cat /tmp/stale-json)" >> $GITHUB_OUTPUT
                   echo "Done"
     delete:
