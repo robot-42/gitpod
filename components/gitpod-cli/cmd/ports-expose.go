@@ -6,11 +6,9 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strconv"
 
 	"github.com/google/tcpproxy"
@@ -25,12 +23,10 @@ var portExposeCmd = &cobra.Command{
 	Short: "Makes a port available on 0.0.0.0 so that it can be exposed to the internet",
 	Long:  ``,
 	Args:  cobra.RangeArgs(1, 2),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		srcp, err := strconv.ParseUint(args[0], 10, 16)
 		if err != nil {
-			log.Fatalf("local-port cannot be parsed as int: %s", err)
-			os.Exit(-1)
-			return
+			return fmt.Errorf("local-port cannot be parsed as int: %s", err)
 		}
 
 		trgp := srcp + 1
@@ -38,9 +34,7 @@ var portExposeCmd = &cobra.Command{
 			var err error
 			trgp, err = strconv.ParseUint(args[1], 10, 16)
 			if err != nil {
-				log.Fatalf("target-port cannot be parsed as int: %s", err)
-				os.Exit(-1)
-				return
+				return fmt.Errorf("target-port cannot be parsed as int: %s", err)
 			}
 		}
 
@@ -59,15 +53,15 @@ var portExposeCmd = &cobra.Command{
 			fmt.Printf("Proxying HTTP traffic: 0.0.0.0:%d -> 127.0.0.1:%d (with host rewriting)\n", trgp, srcp)
 			err = http.ListenAndServe(fmt.Sprintf(":%d", trgp), nil)
 			if err != nil {
-				log.Fatalf("reverse proxy: %s", err)
+				return fmt.Errorf("reverse proxy: %s", err)
 			}
-			return
+			return nil
 		}
 
 		var p tcpproxy.Proxy
 		p.AddRoute(fmt.Sprintf(":%d", trgp), tcpproxy.To(fmt.Sprintf("127.0.0.1:%d", srcp)))
 		fmt.Printf("Forwarding traffic: 0.0.0.0:%d -> 127.0.0.1:%d\n", trgp, srcp)
-		log.Fatal(p.Run())
+		return p.Run()
 	},
 }
 

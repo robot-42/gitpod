@@ -7,7 +7,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -29,10 +28,10 @@ var attachTaskCmd = &cobra.Command{
 	Use:   "attach <id>",
 	Short: "Attach to a workspace task",
 	Args:  cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := supervisor.New(context.Background())
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 		defer client.Close()
 
@@ -45,12 +44,12 @@ var attachTaskCmd = &cobra.Command{
 			defer cancel()
 			tasks, err := client.GetTasksListByState(ctx, api.TaskState_running)
 			if err != nil {
-				log.Fatalf("cannot get task list: %s", err)
+				return fmt.Errorf("cannot get task list: %s", err)
 			}
 
 			if len(tasks) == 0 {
 				fmt.Println("There are no running tasks")
-				return
+				return nil
 			}
 
 			var taskNames []string
@@ -75,11 +74,11 @@ var attachTaskCmd = &cobra.Command{
 				selectedIndex, selectedValue, err := prompt.Run()
 
 				if selectedValue == "" {
-					return
+					return nil
 				}
 
 				if err != nil {
-					panic(err)
+					return err
 				}
 
 				taskIndex = selectedIndex
@@ -97,16 +96,16 @@ var attachTaskCmd = &cobra.Command{
 				default:
 					fmt.Println(e.Code(), e.Message())
 				}
-				return
+				return nil
 			} else {
-				panic(err)
+				return err
 			}
 		}
 		ppid := int64(os.Getppid())
 
 		if ppid == terminal.Pid {
 			fmt.Println("You are already in terminal:", terminalAlias)
-			return
+			return nil
 		}
 
 		interactive, _ := cmd.Flags().GetBool("interactive")
@@ -116,6 +115,7 @@ var attachTaskCmd = &cobra.Command{
 			ForceResize: forceResize,
 			Interactive: interactive,
 		})
+		return nil
 	},
 }
 

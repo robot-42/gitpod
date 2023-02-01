@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -23,19 +24,19 @@ particular port. For example:
     gp url 8080
 will print the URL of a service/server exposed on port 8080.`,
 	Args: cobra.MaximumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			fmt.Println(os.Getenv("GITPOD_WORKSPACE_URL"))
-			return
+			return nil
 		}
 
 		port, err := strconv.ParseUint(args[0], 10, 16)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "port \"%s\" is not a valid number\n", args[0])
-			return
+			return GpError{Err: fmt.Errorf("port \"%s\" is not a valid number", args[0]), OutCome: utils.Outcome_UserErr}
 		}
 
 		fmt.Println(GetWorkspaceURL(int(port)))
+		return nil
 	},
 }
 

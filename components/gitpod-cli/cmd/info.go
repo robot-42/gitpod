@@ -11,8 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/gitpod-io/gitpod/common-go/log"
-	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -27,17 +26,14 @@ var infoCmdOpts struct {
 var infoCmd = &cobra.Command{
 	Use:   "info",
 	Short: "Display workspace info, such as its ID, class, etc.",
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		client, err := supervisor.New(ctx)
+		wsInfo, err := gitpod.GetWSInfo(ctx)
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
-		defer client.Close()
-
-		wsInfo, err := client.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
 
 		data := &infoData{
 			WorkspaceId:    wsInfo.WorkspaceId,
@@ -47,17 +43,13 @@ var infoCmd = &cobra.Command{
 			ClusterHost:    wsInfo.WorkspaceClusterHost,
 		}
 
-		if err != nil {
-			log.Fatal(err)
-		}
-
 		if infoCmdOpts.Json {
 			content, _ := json.Marshal(data)
 			fmt.Println(string(content))
-			return
+			return nil
 		}
-
 		outputInfo(data)
+		return nil
 	},
 }
 

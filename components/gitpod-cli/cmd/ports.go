@@ -12,10 +12,11 @@ var portsCmd = &cobra.Command{
 	Use:   "ports",
 	Short: "Interact with workspace ports.",
 	Args:  cobra.NoArgs,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			_ = cmd.Help()
 		}
+		return nil
 	},
 }
 

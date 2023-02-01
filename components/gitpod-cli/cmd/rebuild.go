@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/supervisor"
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/gitpod"
 	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	"github.com/gitpod-io/gitpod/supervisor/api"
 	"github.com/spf13/cobra"
@@ -49,15 +49,10 @@ func TerminateExistingContainer(ctx context.Context) error {
 	return nil
 }
 
-func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClient, event *utils.AnalyticsEvent) (string, error) {
-	wsInfo, err := supervisorClient.Info.WorkspaceInfo(ctx, &api.WorkspaceInfoRequest{})
-	if err != nil {
-		return utils.Outcome_SystemErr, err
-	}
-
+func runRebuild(ctx context.Context, wsInfo *api.WorkspaceInfoResponse) error {
 	tmpDir, err := os.MkdirTemp("", "gp-rebuild-*")
 	if err != nil {
-		return utils.Outcome_SystemErr, err
+		return err
 	}
 	defer os.RemoveAll(tmpDir)
 
@@ -67,8 +62,7 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 		fmt.Println("")
 		fmt.Println("For help check out the reference page:")
 		fmt.Println("https://www.gitpod.io/docs/references/gitpod-yml#gitpodyml")
-		event.Set("ErrorCode", utils.RebuildErrorCode_MalformedGitpodYaml)
-		return utils.Outcome_UserErr, err
+		return GpError{Err: err, OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MalformedGitpodYaml, Silence: true}
 	}
 
 	if gitpodConfig == nil {
@@ -78,8 +72,7 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 		fmt.Println("")
 		fmt.Println("Alternatively, check out the following docs for getting started configuring your project")
 		fmt.Println("https://www.gitpod.io/docs/configure#configure-gitpod")
-		event.Set("ErrorCode", utils.RebuildErrorCode_MissingGitpodYaml)
-		return utils.Outcome_UserErr, nil
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MissingGitpodYaml, Silence: true}
 	}
 
 	var baseimage string
@@ -93,11 +86,11 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 
 		if _, err := os.Stat(dockerfilePath); os.IsNotExist(err) {
 			fmt.Println("Your .gitpod.yml points to a Dockerfile that doesn't exist: " + dockerfilePath)
-			return utils.Outcome_UserErr, err
+			return GpError{Err: err, OutCome: utils.Outcome_UserErr, Silence: true}
 		}
 		dockerfile, err := os.ReadFile(dockerfilePath)
 		if err != nil {
-			return utils.Outcome_SystemErr, err
+			return err
 		}
 		if string(dockerfile) == "" {
 			fmt.Println("Your Gitpod's Dockerfile is empty")
@@ -106,13 +99,12 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 			fmt.Println("https://www.gitpod.io/docs/configure/workspaces/workspace-image#use-a-custom-dockerfile")
 			fmt.Println("")
 			fmt.Println("Once you configure your Dockerfile, re-run this command to validate your changes")
-			return utils.Outcome_UserErr, nil
+			return GpError{OutCome: utils.Outcome_UserErr, Silence: true}
 		}
 		baseimage = "\n" + string(dockerfile) + "\n"
 	default:
 		fmt.Println("Check your .gitpod.yml and make sure the image property is configured correctly")
-		event.Set("ErrorCode", utils.RebuildErrorCode_MalformedGitpodYaml)
-		return utils.Outcome_UserErr, nil
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_MalformedGitpodYaml, Silence: true}
 	}
 
 	if baseimage == "" {
@@ -120,8 +112,7 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 		fmt.Println("Check out the following docs, to know how to get started")
 		fmt.Println("")
 		fmt.Println("https://www.gitpod.io/docs/configure/workspaces/workspace-image#use-a-public-docker-image")
-		event.Set("ErrorCode", utils.RebuildErrorCode_NoCustomImage)
-		return utils.Outcome_UserErr, nil
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_NoCustomImage, Silence: true}
 	}
 
 	tmpDockerfile := filepath.Join(tmpDir, "Dockerfile")
@@ -129,14 +120,13 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 	err = os.WriteFile(tmpDockerfile, []byte(baseimage), 0644)
 	if err != nil {
 		fmt.Println("Could not write the temporary Dockerfile")
-		return utils.Outcome_SystemErr, err
+		return err
 	}
 
 	dockerPath, err := exec.LookPath("docker")
 	if err != nil {
 		fmt.Println("Docker is not installed in your workspace")
-		event.Set("ErrorCode", utils.RebuildErrorCode_DockerNotFound)
-		return utils.Outcome_SystemErr, err
+		return err
 	}
 
 	tag := "gp-rebuild-temp-build"
@@ -147,21 +137,18 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 
 	imageBuildStartTime := time.Now()
 	err = dockerCmd.Run()
+	utils.TrackCommandUsageEvent.ImageBuildDuration = time.Since(imageBuildStartTime).Milliseconds()
 	if _, ok := err.(*exec.ExitError); ok {
 		fmt.Println("Image Build Failed")
-		event.Set("ErrorCode", utils.RebuildErrorCode_ImageBuildFailed)
-		return utils.Outcome_UserErr, nil
+		return GpError{OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_ImageBuildFailed, Silence: true}
 	} else if err != nil {
 		fmt.Println("Docker error")
-		event.Set("ErrorCode", utils.RebuildErrorCode_DockerErr)
-		return utils.Outcome_SystemErr, err
+		return GpError{Err: err, ErrorCode: utils.RebuildErrorCode_DockerErr, Silence: true}
 	}
-	ImageBuildDuration := time.Since(imageBuildStartTime).Milliseconds()
-	event.Set("ImageBuildDuration", ImageBuildDuration)
 
 	err = TerminateExistingContainer(ctx)
 	if err != nil {
-		return utils.Outcome_SystemErr, err
+		return err
 	}
 
 	welcomeMessage := strings.Join([]string{
@@ -201,20 +188,19 @@ func runRebuild(ctx context.Context, supervisorClient *supervisor.SupervisorClie
 	err = dockerRunCmd.Start()
 	if err != nil {
 		fmt.Println("Failed to run docker container")
-		event.Set("ErrorCode", utils.RebuildErrorCode_DockerRunFailed)
-		return utils.Outcome_UserErr, err
+		return GpError{Err: err, OutCome: utils.Outcome_UserErr, ErrorCode: utils.RebuildErrorCode_DockerRunFailed, Silence: true}
 	}
 
 	_ = dockerRunCmd.Wait()
 
-	return utils.Outcome_Success, nil
+	return nil
 }
 
 var buildCmd = &cobra.Command{
 	Use:    "rebuild",
 	Short:  "Re-builds the workspace image (useful to debug a workspace custom image)",
 	Hidden: false,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
@@ -222,35 +208,12 @@ var buildCmd = &cobra.Command{
 			<-sigChan
 			cancel()
 		}()
-		supervisorClient, err := supervisor.New(ctx)
+		wsInfo, err := gitpod.GetWSInfo(ctx)
 		if err != nil {
-			utils.LogError(ctx, err, "Could not get workspace info required to build", supervisorClient)
-			return
-		}
-		defer supervisorClient.Close()
-
-		event := utils.NewAnalyticsEvent(ctx, supervisorClient, &utils.TrackCommandUsageParams{
-			Command: cmd.Name(),
-		})
-
-		outcome, err := runRebuild(ctx, supervisorClient, event)
-		event.Set("Outcome", outcome)
-
-		if outcome != utils.Outcome_Success && event.Data.ErrorCode == "" {
-			switch outcome {
-			case utils.Outcome_UserErr:
-				event.Set("ErrorCode", utils.UserErrorCode)
-			case utils.Outcome_SystemErr:
-				event.Set("ErrorCode", utils.SystemErrorCode)
-			}
+			return err
 		}
 
-		event.Send(ctx)
-
-		if err != nil {
-			utils.LogError(ctx, err, "Failed to rebuild", supervisorClient)
-			os.Exit(1)
-		}
+		return runRebuild(ctx, wsInfo)
 	},
 }
 

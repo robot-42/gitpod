@@ -6,12 +6,12 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"regexp"
 	"strconv"
 	"time"
 
+	"github.com/gitpod-io/gitpod/gitpod-cli/pkg/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -24,16 +24,16 @@ var awaitPortCmd = &cobra.Command{
 	Use:   "await <port>",
 	Short: "Waits for a process to listen on a port",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		port, err := strconv.ParseUint(args[0], 10, 16)
 		if err != nil {
-			log.Fatalf("port cannot be parsed as int: %s", err)
+			return GpError{Err: fmt.Errorf("port cannot be parsed as int: %s", err), OutCome: utils.Outcome_UserErr}
 		}
 
 		// Expected format: local port (in hex), remote address (irrelevant here), connection state ("0A" is "TCP_LISTEN")
 		pattern, err := regexp.Compile(fmt.Sprintf(":[0]*%X \\w+:\\w+ 0A ", port))
 		if err != nil {
-			log.Fatal("cannot compile regexp pattern")
+			return GpError{Err: fmt.Errorf("cannot compile regexp pattern"), OutCome: utils.Outcome_UserErr}
 		}
 
 		var protos []string
@@ -48,12 +48,12 @@ var awaitPortCmd = &cobra.Command{
 			for _, proto := range protos {
 				tcp, err := os.ReadFile(proto)
 				if err != nil {
-					log.Fatalf("cannot read %v: %s", proto, err)
+					return fmt.Errorf("cannot read %v: %s", proto, err)
 				}
 
 				if pattern.MatchString(string(tcp)) {
 					fmt.Println("ok")
-					return
+					return nil
 				}
 			}
 

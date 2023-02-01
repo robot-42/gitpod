@@ -38,7 +38,7 @@ var gitTokenValidator = &cobra.Command{
 	Long:   "Tries to guess the scopes needed for a git operation and requests an appropriate token.",
 	Args:   cobra.ExactArgs(0),
 	Hidden: true,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		log.SetOutput(io.Discard)
 		f, err := os.OpenFile(os.TempDir()+"/gitpod-git-credential-helper.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 		if err == nil {
@@ -77,6 +77,8 @@ var gitTokenValidator = &cobra.Command{
 		if err != nil {
 			log.WithError(err).Fatal("error connecting to server")
 		}
+		defer client.Close()
+
 		params := &serverapi.GuessGitTokenScopesParams{
 			Host:       gitTokenValidatorOpts.Host,
 			RepoURL:    gitTokenValidatorOpts.RepoURL,
@@ -116,7 +118,7 @@ var gitTokenValidator = &cobra.Command{
 					log.WithError(err).Fatalf("error opening access-control: '%s'", message)
 				}
 			}
-			return
+			return nil
 		}
 		if len(guessedTokenScopes.Scopes) > 0 {
 			_, err = supervisor.NewTokenServiceClient(supervisorConn).GetToken(ctx,
@@ -128,9 +130,10 @@ var gitTokenValidator = &cobra.Command{
 				})
 			if err != nil {
 				log.WithError(err).Fatal("error getting new token from token service")
-				return
+				return nil
 			}
 		}
+		return nil
 	},
 }
 

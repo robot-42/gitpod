@@ -31,7 +31,7 @@ var credentialHelper = &cobra.Command{
 	Long:   "Supports reading of credentials per host.",
 	Args:   cobra.MinimumNArgs(1),
 	Hidden: true,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		action := args[0]
 		log.SetOutput(io.Discard)
 		f, err := os.OpenFile(os.TempDir()+"/gitpod-git-credential-helper.log", os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
@@ -40,14 +40,14 @@ var credentialHelper = &cobra.Command{
 			log.SetOutput(f)
 		}
 		if action != "get" {
-			return
+			return nil
 		}
 
 		result, err := parseFromStdin()
 		host := result["host"]
 		if err != nil || host == "" {
 			log.WithError(err).Print("error parsing 'host' from stdin")
-			return
+			return fmt.Errorf("error parsing 'host' from stdin: %s", err)
 		}
 
 		var user, token string
@@ -72,7 +72,7 @@ var credentialHelper = &cobra.Command{
 		supervisorConn, err := grpc.Dial(util.GetSupervisorAddress(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.WithError(err).Print("error connecting to supervisor")
-			return
+			return err
 		}
 
 		resp, err := supervisor.NewTokenServiceClient(supervisorConn).GetToken(ctx, &supervisor.GetTokenRequest{
@@ -81,7 +81,7 @@ var credentialHelper = &cobra.Command{
 		})
 		if err != nil {
 			log.WithError(err).Print("error getting token from supervisior")
-			return
+			return err
 		}
 
 		user = resp.User
@@ -103,11 +103,11 @@ var credentialHelper = &cobra.Command{
 		})
 		if err != nil {
 			log.WithError(err).Print("error walking process tree")
-			return
+			return err
 		}
 		if !gitCmdInfo.Ok() {
 			log.Warn(`Could not detect "RepoUrl" and or "GitCommand", token validation will not be performed`)
-			return
+			return nil
 		}
 
 		// Starts another process which tracks the executed git event
@@ -135,13 +135,14 @@ var credentialHelper = &cobra.Command{
 		err = validator.Start()
 		if err != nil {
 			log.WithError(err).Print("error spawning validator")
-			return
+			return err
 		}
 		err = validator.Process.Release()
 		if err != nil {
 			log.WithError(err).Print("error releasing validator")
-			return
+			return err
 		}
+		return nil
 	},
 }
 

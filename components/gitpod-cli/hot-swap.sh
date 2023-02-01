@@ -1,14 +1,19 @@
 #!/bin/bash
-# Copyright (c) 2022 Gitpod GmbH. All rights reserved.
+# Copyright (c) 2023 Gitpod GmbH. All rights reserved.
 # Licensed under the GNU Affero General Public License (AGPL).
 # See License.AGPL.txt in the project root for license information.
 
 set -Eeuo pipefail
 
-# This script builds supervisor and swaps the old binary with the new one inside another workspace
+# This script builds gitpod-cli and swaps the old binary with the new one inside another workspace
 
 component=${PWD##*/}
 workspaceUrl=$(echo "${1}" |sed -e "s/\/$//")
+
+# build
+go build .
+echo "$component built"
+
 echo "URL: $workspaceUrl"
 
 workspaceDesc=$(gpctl workspaces describe "$workspaceUrl" -o=json)
@@ -29,14 +34,10 @@ echo "Host $workspaceId" > "$sshConfig"
 echo "    Hostname \"$workspaceId.ssh.$clusterHost\"" >> "$sshConfig"
 echo "    User \"$workspaceId#$ownerToken\"" >> "$sshConfig"
 
-# build
-go build .
-echo "$component built"
-
 # upload
 uploadDest="/.supervisor/$component"
 echo "Upload Dest: $uploadDest"
 ssh -F "$sshConfig" "$workspaceId" "sudo chown -R gitpod:gitpod /.supervisor && rm $uploadDest 2> /dev/null"
 echo "Permissions granted"
-scp -F "$sshConfig" -r "./supervisor" "$workspaceId":"$uploadDest"
+scp -F "$sshConfig" -r "./$component" "$workspaceId":"$uploadDest"
 echo "Swap complete"
