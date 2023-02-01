@@ -23,12 +23,19 @@ export interface WorkspaceManagerClientProviderSource {
 export class WorkspaceManagerClientProviderEnvSource implements WorkspaceManagerClientProviderSource {
     protected _clusters: WorkspaceCluster[] | undefined = undefined;
 
-    public async getWorkspaceCluster(name: string, applicationCluster: string): Promise<WorkspaceCluster | undefined> {
-        return this.clusters.find((m) => m.name === name && m.applicationCluster === applicationCluster);
+    public async getWorkspaceCluster(name: string): Promise<WorkspaceCluster | undefined> {
+        return this.clusters.find((m) => m.name === name);
     }
 
-    public async getAllWorkspaceClusters(applicationCluster: string): Promise<WorkspaceClusterWoTLS[]> {
-        return this.clusters.filter((m) => m.applicationCluster === applicationCluster) ?? [];
+    public async getAllWorkspaceClusters(
+        applicationCluster: string,
+        region?: string,
+    ): Promise<WorkspaceClusterWoTLS[]> {
+        return (
+            this.clusters.filter(
+                (m) => m.applicationCluster === applicationCluster && (!region || m.region === region),
+            ) ?? []
+        );
     }
 
     protected get clusters(): WorkspaceCluster[] {

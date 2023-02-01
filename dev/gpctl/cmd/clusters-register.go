@@ -63,21 +63,29 @@ var clustersRegisterCmd = &cobra.Command{
 		if err != nil {
 			log.Fatal(err)
 		}
-		if len(name) < 1 && len(request.Name) < 1 {
+		if len(name) < 1 {
 			log.Fatal("please set the cluster name with flag --name")
-		}
-		if len(name) > 0 {
+		} else {
 			request.Name = name
+		}
+
+		region, err := cmd.Flags().GetString("region")
+		if err != nil {
+			log.Fatal(err)
+		}
+		if len(region) < 1 {
+			log.Fatal("please set the cluster's region with flag --region")
+		} else {
+			request.Region = region
 		}
 
 		url, err := cmd.Flags().GetString("url")
 		if err != nil {
 			log.Fatal(err)
 		}
-		if len(url) < 1 && len(request.Url) < 1 {
+		if len(url) < 1 {
 			log.Fatal("please set the cluster url with flag --url")
-		}
-		if len(url) > 0 {
+		} else {
 			request.Url = url
 		}
 
@@ -150,6 +158,7 @@ var clustersRegisterCmd = &cobra.Command{
 
 func init() {
 	clustersRegisterCmd.Flags().String("name", "", "cluster name")
+	clustersRegisterCmd.Flags().String("region", "", "region name")
 	clustersRegisterCmd.Flags().String("url", "", "cluster url")
 	clustersRegisterCmd.Flags().String("tls-path", "", "folder containing the ws cluster's ca.crt, tls.crt and tls.key")
 	clustersRegisterCmd.Flags().Bool("hint-cordoned", false, "sets hint cordoned")
