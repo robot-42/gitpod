@@ -5,6 +5,8 @@ jobs:
     gc:
         name: "Delete unused preview environments"
         runs-on: [self-hosted]
+        container:
+            image: eu.gcr.io/gitpod-core-dev/dev/dev-environment:mads-leeway-v0.7.3.4
         steps:
             - uses: actions/checkout@v3
             - name: Garbage collect
@@ -13,6 +15,7 @@ jobs:
                   PREVIEW_ENV_DEV_SA_KEY: ${{ secrets.GCP_CREDENTIALS }}
                   PREVIEW_ENV_DEV_SA_KEY_PATH: "/home/gitpod/.config/gcloud/preview-environment-dev-sa.json"
               run: |
+                  export LEEWAY_WORKSPACE_ROOT="$(pwd)"
                   echo "${PREVIEW_ENV_DEV_SA_KEY}" > "${PREVIEW_ENV_DEV_SA_KEY_PATH}"
                   gcloud auth activate-service-account --key-file "${PREVIEW_ENV_DEV_SA_KEY_PATH}"
                   leeway run dev/preview/previewctl:install
