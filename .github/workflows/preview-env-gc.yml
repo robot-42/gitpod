@@ -2,14 +2,17 @@ name: "Preview environment garbage collection"
 on:
     workflow_dispatch:
 jobs:
-    gc:
-        name: "Delete unused preview environments"
+    stale:
+        name: "Find stale preview environments"
         runs-on: [self-hosted]
         container:
             image: eu.gcr.io/gitpod-core-dev/dev/dev-environment:mads-leeway-v0.7.3.4
+        outputs:
+            names: ${{ steps.set-matrix.outputs.names }}
         steps:
             - uses: actions/checkout@v3
-            - name: Garbage collect
+            - name: Compute matrix
+              id: set-matrix
               env:
                   HOME: /home/gitpod
                   PREVIEW_ENV_DEV_SA_KEY: ${{ secrets.GCP_CREDENTIALS }}
@@ -26,5 +29,29 @@ jobs:
                   GOOGLE_APPLICATION_CREDENTIALS=$PREVIEW_ENV_DEV_SA_KEY_PATH previewctl list stale > /tmp/stale
                   echo "Stale preview environments are:"
                   cat /tmp/stale
-                  sleep 600
+
+                  # Just hacking for now
+                  echo "Overwriting stale envs to debug"
+                  echo "mads-foobar-123" > /tmp/stale
+                  echo "some-othername" >> /tmp/stale
+                  echo "new /tmp/stale"
+                  cat /tmp/stale
+                  # end of hack
+
+                  cat /tmp/stale | jq --compact-output --raw-input --slurp 'split("\n") | map(select(. != ""))')" > /tmp/stale-json
+                  echo "names=$(cat /tmp/stale-json)" >> $GITHUB_OUTPUT
                   echo "Done"
+    delete:
+        name: "Delete preview environment"
+        needs: [stale]
+        runs-on: [self-hosted]
+        strategy:
+            matrix:
+                name: ${{ fromJSON(needs.stale.outputs.names) }}
+        steps:
+            - uses: actions/checkout@v3
+            - name: Delete preview environment ${{ matrix.name}})
+              uses: ./.github/actions/delete-preview
+              with:
+                  name: ${{ matrix.name}})
+                  sa_key: ${{ secrets.GCP_CREDENTIALS }}
