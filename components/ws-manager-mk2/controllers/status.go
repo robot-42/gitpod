@@ -293,31 +293,33 @@ func isPodBeingDeleted(pod *corev1.Pod) bool {
 	return pod.ObjectMeta.DeletionTimestamp != nil
 }
 
-type activity string
+// isWorkspaceBeingDeleted returns true if the workspace resource is currently being deleted.
+func isWorkspaceBeingDeleted(ws *workspacev1.Workspace) bool {
+	return ws.ObjectMeta.DeletionTimestamp != nil
+}
+
+type timeoutActivity string
 
 const (
-	activityInit               activity = "initialization"
-	activityStartup            activity = "startup"
-	activityCreatingContainers activity = "creating containers"
-	activityPullingImages      activity = "pulling images"
-	activityRunningHeadless    activity = "running the headless workspace"
-	activityNone               activity = "period of inactivity"
-	activityMaxLifetime        activity = "maximum lifetime"
-	activityClosed             activity = "after being closed"
-	activityInterrupted        activity = "workspace interruption"
-	activityStopping           activity = "stopping"
-	activityBackup             activity = "backup"
+	activityInit               timeoutActivity = "initialization"
+	activityStartup            timeoutActivity = "startup"
+	activityCreatingContainers timeoutActivity = "creating containers"
+	activityPullingImages      timeoutActivity = "pulling images"
+	activityRunningHeadless    timeoutActivity = "running the headless workspace"
+	activityNone               timeoutActivity = "period of inactivity"
+	activityMaxLifetime        timeoutActivity = "maximum lifetime"
+	activityClosed             timeoutActivity = "after being closed"
+	activityInterrupted        timeoutActivity = "workspace interruption"
+	activityStopping           timeoutActivity = "stopping"
+	activityBackup             timeoutActivity = "backup"
 )
 
 // isWorkspaceTimedOut determines if a workspace is timed out based on the manager configuration and state the pod is in.
 // This function does NOT use the Timeout condition, but rather is used to set that condition in the first place.
-//
-//nolint:unused,deadcode TODO: Remove nolint
-func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts config.WorkspaceTimeoutConfiguration, act *wsactivity.WorkspaceActivity) (reason string, err error) {
-	// workspaceID := ws.Spec.Ownership.WorkspaceID
+func isWorkspaceTimedOut(ws *workspacev1.Workspace, timeouts config.WorkspaceTimeoutConfiguration, act *wsactivity.WorkspaceActivity) (reason string, err error) {
 	phase := ws.Status.Phase
 
-	decide := func(start time.Time, timeout util.Duration, activity activity) (string, error) {
+	decide := func(start time.Time, timeout util.Duration, activity timeoutActivity) (string, error) {
 		td := time.Duration(timeout)
 		inactivity := time.Since(start)
 		if inactivity < td {
@@ -327,9 +329,8 @@ func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts co
 		return fmt.Sprintf("workspace timed out after %s (%s) took longer than %s", activity, formatDuration(inactivity), formatDuration(td)), nil
 	}
 
-	// TODO: Use ws or pod's CreationTimestamp?
 	start := ws.ObjectMeta.CreationTimestamp.Time
-	lastActivity := act.GetLastActivity(ws.Spec.Ownership.WorkspaceID)
+	lastActivity := act.GetLastActivity(ws.Name)
 	isClosed := conditionPresentAndTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionClosed))
 
 	switch phase {
@@ -371,15 +372,15 @@ func isWorkspaceTimedOut(ws *workspacev1.Workspace, pod *corev1.Pod, timeouts co
 		return decide(*lastActivity, timeout, activity)
 
 	case workspacev1.WorkspacePhaseStopping:
-		if isPodBeingDeleted(pod) && conditionPresentAndTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionBackupComplete)) {
+		if isWorkspaceBeingDeleted(ws) && conditionPresentAndTrue(ws.Status.Conditions, string(workspacev1.WorkspaceConditionBackupComplete)) {
 			// Beware: we apply the ContentFinalization timeout only to workspaces which are currently being deleted.
 			//         We basically don't expect a workspace to be in content finalization before it's been deleted.
-			return decide(pod.DeletionTimestamp.Time, timeouts.ContentFinalization, activityBackup)
-		} else if !isPodBeingDeleted(pod) {
-			// pods that have not been deleted have never timed out
+			return decide(ws.DeletionTimestamp.Time, timeouts.ContentFinalization, activityBackup)
+		} else if !isWorkspaceBeingDeleted(ws) {
+			// workspaces that have not been deleted have never timed out
 			return "", nil
 		} else {
-			return decide(pod.DeletionTimestamp.Time, timeouts.Stopping, activityStopping)
+			return decide(ws.DeletionTimestamp.Time, timeouts.Stopping, activityStopping)
 		}
 
 	default:

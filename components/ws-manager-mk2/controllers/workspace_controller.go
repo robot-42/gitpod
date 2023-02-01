@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	wsactivity "github.com/gitpod-io/gitpod/ws-manager-mk2/pkg/activity"
 	config "github.com/gitpod-io/gitpod/ws-manager/api/config"
 	workspacev1 "github.com/gitpod-io/gitpod/ws-manager/api/crd/v1"
 	"github.com/prometheus/client_golang/prometheus"
@@ -29,12 +28,11 @@ const (
 	kubernetesOperationTimeout = 5 * time.Second
 )
 
-func NewWorkspaceReconciler(c client.Client, scheme *runtime.Scheme, cfg config.Configuration, reg prometheus.Registerer, activity *wsactivity.WorkspaceActivity) (*WorkspaceReconciler, error) {
+func NewWorkspaceReconciler(c client.Client, scheme *runtime.Scheme, cfg config.Configuration, reg prometheus.Registerer) (*WorkspaceReconciler, error) {
 	reconciler := &WorkspaceReconciler{
-		Client:   c,
-		Scheme:   scheme,
-		Config:   cfg,
-		activity: activity,
+		Client: c,
+		Scheme: scheme,
+		Config: cfg,
 	}
 
 	metrics, err := newControllerMetrics(reconciler)
@@ -54,7 +52,6 @@ type WorkspaceReconciler struct {
 
 	Config      config.Configuration
 	metrics     *controllerMetrics
-	activity    *wsactivity.WorkspaceActivity
 	OnReconcile func(ctx context.Context, ws *workspacev1.Workspace)
 }
 

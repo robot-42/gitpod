@@ -98,10 +98,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	activity := &activity.WorkspaceActivity{}
-	reconciler, err := controllers.NewWorkspaceReconciler(mgr.GetClient(), mgr.GetScheme(), cfg.Manager, metrics.Registry, activity)
+	reconciler, err := controllers.NewWorkspaceReconciler(mgr.GetClient(), mgr.GetScheme(), cfg.Manager, metrics.Registry)
 	if err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Workspace")
+		os.Exit(1)
+	}
+	activity := &activity.WorkspaceActivity{}
+	timeoutReconciler, err := controllers.NewTimeoutReconciler(mgr.GetClient(), cfg.Manager, activity)
+	if err != nil {
+		setupLog.Error(err, "unable to create timeout controller", "controller", "Timeout")
 		os.Exit(1)
 	}
 
@@ -113,7 +118,11 @@ func main() {
 
 	reconciler.OnReconcile = wsmanService.OnWorkspaceReconcile
 	if err = reconciler.SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Workspace")
+		setupLog.Error(err, "unable to set up workspace controller with manager", "controller", "Workspace")
+		os.Exit(1)
+	}
+	if err = timeoutReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to set up timeout controller with manager", "controller", "Timeout")
 		os.Exit(1)
 	}
 
