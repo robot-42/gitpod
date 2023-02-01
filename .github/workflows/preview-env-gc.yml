@@ -24,5 +24,4 @@ jobs:
                   previewctl get-credentials --gcp-service-account "${PREVIEW_ENV_DEV_SA_KEY_PATH}"
                   echo "Listing stale preview environments"
                   previewctl list stale
-                  sleep 600
                   echo "Done"
