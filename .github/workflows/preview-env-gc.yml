@@ -14,6 +14,7 @@ jobs:
                   HOME: /home/gitpod
                   PREVIEW_ENV_DEV_SA_KEY: ${{ secrets.GCP_CREDENTIALS }}
                   PREVIEW_ENV_DEV_SA_KEY_PATH: "/home/gitpod/.config/gcloud/preview-environment-dev-sa.json"
+              shell: bash
               run: |
                   export LEEWAY_WORKSPACE_ROOT="$(pwd)"
                   echo "${PREVIEW_ENV_DEV_SA_KEY}" > "${PREVIEW_ENV_DEV_SA_KEY_PATH}"
