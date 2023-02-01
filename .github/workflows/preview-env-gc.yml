@@ -21,4 +21,6 @@ jobs:
                   gcloud auth activate-service-account --key-file "${PREVIEW_ENV_DEV_SA_KEY_PATH}"
                   leeway run dev/preview/previewctl:install
                   previewctl get-credentials --gcp-service-account "${PREVIEW_ENV_DEV_SA_KEY_PATH}"
+                  echo "Listing stale preview environments"
                   previewctl list stale
+                  echo "Done"
