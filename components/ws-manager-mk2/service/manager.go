@@ -370,10 +370,11 @@ func (wsm *WorkspaceManagerServer) MarkActive(ctx context.Context, req *wsmanapi
 	// If it's the first call: Mark the pod with FirstUserActivity condition.
 	if firstUserActivity == nil {
 		err := wsm.modifyWorkspace(ctx, req.Id, true, func(ws *workspacev1.Workspace) error {
-			ws.Status.Conditions = append(ws.Status.Conditions, metav1.Condition{
+			ws.Status.Conditions = addUniqueCondition(ws.Status.Conditions, metav1.Condition{
 				Type:               string(workspacev1.WorkspaceConditionFirstUserActivity),
 				Status:             metav1.ConditionTrue,
 				LastTransitionTime: metav1.NewTime(now),
+				Reason:             "FirstActivity",
 			})
 			return nil
 		})
@@ -606,7 +607,7 @@ func extractWorkspaceStatus(ws *workspacev1.Workspace) *wsmanapi.WorkspaceStatus
 
 	var timeout string
 	if ws.Spec.Timeout.Time != nil {
-		timeout = ws.Spec.Timeout.Time.String()
+		timeout = ws.Spec.Timeout.Time.Duration.String()
 	}
 
 	var phase wsmanapi.WorkspacePhase

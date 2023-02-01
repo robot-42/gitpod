@@ -8,6 +8,7 @@ import (
 	"context"
 	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +54,9 @@ func (r *TimeoutReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 
 	var workspace workspacev1.Workspace
 	if err := r.Get(ctx, req.NamespacedName, &workspace); err != nil {
-		log.Error(err, "unable to fetch workspace")
+		if !apierrors.IsNotFound(err) {
+			log.Error(err, "unable to fetch workspace")
+		}
 		// we'll ignore not-found errors, since they can't be fixed by an immediate
 		// requeue (we'll need to wait for a new notification), and we can get them
 		// on deleted requests.
@@ -68,6 +71,11 @@ func (r *TimeoutReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 		result.RequeueAfter = r.reconcileInterval
 	}()
 
+	if conditionPresentAndTrue(workspace.Status.Conditions, string(workspacev1.WorkspaceConditionTimeout)) {
+		// Workspace has already timed out.
+		return ctrl.Result{}, nil
+	}
+
 	timedout, err := isWorkspaceTimedOut(&workspace, r.Config.Timeouts, r.activity)
 	if err != nil {
 		log.Error(err, "failed to check for workspace timeout")
@@ -80,16 +88,12 @@ func (r *TimeoutReconciler) Reconcile(ctx context.Context, req ctrl.Request) (re
 	}
 
 	// Workspace timed out, set Timeout condition.
-	if conditionPresentAndTrue(workspace.Status.Conditions, string(workspacev1.WorkspaceConditionTimeout)) {
-		// Already has Timeout condition, don't update.
-		return ctrl.Result{}, nil
-	}
-
 	log.Info("Workspace timed out", "reason", timedout, "timeout", workspace.Spec.Timeout)
 	workspace.Status.Conditions = AddUniqueCondition(workspace.Status.Conditions, metav1.Condition{
 		Type:               string(workspacev1.WorkspaceConditionTimeout),
 		Status:             metav1.ConditionTrue,
 		LastTransitionTime: metav1.Now(),
+		Reason:             "TimedOut",
 		Message:            timedout,
 	})
 
