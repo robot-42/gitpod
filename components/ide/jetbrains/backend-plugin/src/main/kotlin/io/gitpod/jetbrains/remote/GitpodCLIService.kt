@@ -6,6 +6,7 @@ package io.gitpod.jetbrains.remote
 
 import com.intellij.codeWithMe.ClientId
 import com.intellij.ide.BrowserUtil
+import com.intellij.ide.CliResult
 import com.intellij.ide.CommandLineProcessor
 import com.intellij.openapi.client.ClientSession
 import com.intellij.openapi.client.ClientSessionsManager
@@ -27,12 +28,14 @@ import io.netty.handler.codec.http.FullHttpRequest
 import io.netty.handler.codec.http.QueryStringDecoder
 import io.prometheus.client.exporter.common.TextFormat
 import kotlinx.coroutines.*
+import kotlinx.coroutines.future.asDeferred
 import org.jetbrains.ide.RestService
 import org.jetbrains.io.response
 import java.io.OutputStreamWriter
 import java.nio.file.InvalidPathException
 import java.nio.file.Path
 import java.util.*
+import java.util.concurrent.CompletableFuture
 
 @Suppress("UnstableApiUsage", "OPT_IN_USAGE")
 class GitpodCLIService : RestService() {
@@ -67,7 +70,14 @@ class GitpodCLIService : RestService() {
             val file = parseFilePath(fileStr) ?: return "invalid file"
             val shouldWait = getBooleanParameter("wait", urlDecoder)
             return withClient(request, context) {
-                CommandLineProcessor.doOpenFileOrProject(file, shouldWait).future.await()
+                val f = CommandLineProcessor.doOpenFileOrProject(file, shouldWait).future
+                val d = if (f is Deferred<*>)
+                    f // latest
+                else if (f is CompletableFuture<*>)
+                    f.asDeferred() // stable
+                else
+                    throw IllegalStateException("unexpected")
+                d.await()
             }
         }
         if (operation == "preview") {
