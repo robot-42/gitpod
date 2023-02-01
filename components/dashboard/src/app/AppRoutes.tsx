@@ -11,7 +11,7 @@ import { StartPage, StartPhase } from "../start/StartPage";
 import { getURLHash, isGitpodIo, isLocalPreview } from "../utils";
 import { shouldSeeWhatsNew, WhatsNew } from "../whatsnew/WhatsNew";
 import { Redirect, Route, Switch } from "react-router";
-import Menu from "../Menu";
+import Menu from "../menu/Menu";
 import { parseProps } from "../start/StartWorkspace";
 import { AppNotifications } from "../AppNotifications";
 import { AdminRoute } from "./AdminRoute";
